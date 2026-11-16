@@ -1,13 +1,13 @@
 import { frameLoop, surface, type Gpu } from "vgpu";
 
-import { createArtboardLoader } from "./artboards.ts";
 import { cameraView, clampOrbit, initialOrbit } from "./camera.ts";
 import { loadCarModel } from "./car/index.ts";
 import { DESIGN, designSources, watchDesign } from "./design-sources.ts";
 import type { View } from "./frames.ts";
 import { rasterizeArtboard } from "./rasterize.ts";
-import { aspectOf, createScene, render, replaceHdr, runCleanups, setArtboard } from "./scene.ts";
+import { aspectOf, createScene, render, replaceHdr, runCleanups } from "./scene.ts";
 import { sceneShaders } from "./shaders.ts";
+import { createWardrobe, type Wardrobe } from "./wardrobe.ts";
 
 interface RendererOptions {
   readonly canvas: HTMLCanvasElement;
@@ -26,6 +26,7 @@ export function createRenderer({ canvas, onArtboardProblems }: RendererOptions) 
   let loop: { stop(): void } | undefined;
   let unsubscribeResize: (() => void) | undefined;
   let stopWatchingDesign: (() => void) | undefined;
+  let wardrobe: Wardrobe | undefined;
 
   function dispose(): void {
     if (disposed) return;
@@ -33,6 +34,7 @@ export function createRenderer({ canvas, onArtboardProblems }: RendererOptions) 
     runCleanups([
       () => loop?.stop(),
       () => stopWatchingDesign?.(),
+      () => wardrobe?.dispose(),
       () => unsubscribeResize?.(),
       () => input?.dispose(),
       () => gpu?.dispose(),
@@ -94,21 +96,19 @@ export function createRenderer({ canvas, onArtboardProblems }: RendererOptions) 
     // The car is already on screen; its artboards arrive one by one behind it. An
     // artboard that fails keeps its previous image and is reported, never thrown: a
     // broken design file must not stop the renderer.
-    const artboards = createArtboardLoader({
+    const held = createWardrobe(nextGpu, scene, {
       rasterize: rasterizeArtboard,
-      apply: (view, raster) => {
-        if (!disposed) setArtboard(nextGpu, scene, view, raster);
-      },
-      report: (problems) => {
+      report: (_design, problems) => {
         if (!disposed) onArtboardProblems?.(problems);
       },
-      missing: "文件不存在",
     });
-    void artboards.update(designSources(DESIGN));
+    wardrobe = held;
+    held.wear(DESIGN);
+    held.setDesigns(new Map([[DESIGN, designSources(DESIGN)]]));
     // While the dev server runs, a saved artboard arrives here without a page reload;
-    // the loader rasterises only the artboards whose text changed.
+    // the wardrobe rasterises only the artboards whose text changed.
     stopWatchingDesign = watchDesign(DESIGN, (sources) => {
-      if (!disposed) void artboards.update(sources);
+      if (!disposed) guard(() => held.setDesigns(new Map([[DESIGN, sources]])));
     });
   };
 

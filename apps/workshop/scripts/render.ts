@@ -10,7 +10,8 @@
  * opens with. `--out` is relative to the directory the command is run from and
  * defaults to a file in the system's temporary directory. Prints the file it wrote.
  * A value that is not a number, or a width or height that is not a positive whole
- * number, ends the script with a message naming the option.
+ * number, ends the script with a message naming the option; so does a `--design` that
+ * names no design under `designs/`, with a message listing the ones there are.
  */
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -22,7 +23,7 @@ import { artboardPath } from "../src/artboards.ts";
 import { cameraView, initialOrbit } from "../src/camera.ts";
 import { loadCarModel } from "../src/car/index.ts";
 import { aspectOf, createScene, render } from "../src/scene.ts";
-import { applyDesign } from "./lib/design.ts";
+import { applyDesign, listDesigns } from "./lib/design.ts";
 import { writePng } from "./lib/png.ts";
 import { loadSceneShaders } from "./lib/shaders.ts";
 
@@ -78,6 +79,11 @@ const size: [number, number] = [
   pixelsOption("width", values.width),
   pixelsOption("height", values.height),
 ];
+const designs = listDesigns();
+if (!designs.includes(values.design)) {
+  console.error(`render: no design named "${values.design}"; designs: ${designs.join(", ")}`);
+  process.exit(2);
+}
 
 const gpu = await init();
 try {

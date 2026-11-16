@@ -12,11 +12,7 @@ import {
   type Texture,
 } from "vgpu";
 
-import {
-  createArtboardTexture,
-  createEmptyArtboardTexture,
-  type ArtboardRaster,
-} from "./artboards.ts";
+import { createEmptyArtboardTexture } from "./artboards.ts";
 import type { CameraView } from "./camera.ts";
 import {
   modelBounds,
@@ -142,12 +138,11 @@ export async function createScene(
         maxAnisotropy: 8,
       }),
     });
-    // Every artboard starts empty: the car wears no film until a design is applied.
-    const film = {} as Record<View, Texture>;
-    for (const view of VIEWS) {
-      film[view] = own(owned, createEmptyArtboardTexture(gpu));
-      car.set({ [filmBinding(view)]: film[view] });
-    }
+    // Every artboard starts empty: the car wears no film until a design is put on.
+    // The scene owns only this empty film; a design's textures belong to whoever
+    // binds them.
+    const emptyFilm = own(owned, createEmptyArtboardTexture(gpu));
+    car.set(filmBindings(emptyFilm, {}));
 
     const seamGeometry = own(owned, createSeamGeometry(gpu, model));
     const seams = draw(gpu, { shader: shaders.seams, geometry: seamGeometry });
@@ -202,7 +197,7 @@ export async function createScene(
       hdr,
       bounds,
       geometries: [carGeometry, seamGeometry, groundGeometry],
-      film,
+      emptyFilm,
       car,
       seams,
       ground,
@@ -220,17 +215,31 @@ function filmBinding(view: View): string {
   return `film_${VIEWS.indexOf(view)}`;
 }
 
-/** Replaces one artboard on the car with a freshly rasterised image. */
-export function setArtboard(gpu: Gpu, scene: Scene, view: View, raster: ArtboardRaster): void {
-  const next = createArtboardTexture(gpu, raster);
-  const previous = scene.film[view];
-  try {
-    scene.car.set({ [filmBinding(view)]: next });
-  } catch (error) {
-    runCleanups([() => next.destroy()], { error });
-  }
-  scene.film[view] = next;
-  previous.destroy();
+/** Every view's film binding: the given texture, or the empty film where there is none. */
+function filmBindings(
+  emptyFilm: Texture,
+  film: Partial<Record<View, Texture>>,
+): Record<string, Texture> {
+  const bindings: Record<string, Texture> = {};
+  for (const view of VIEWS) bindings[filmBinding(view)] = film[view] ?? emptyFilm;
+  return bindings;
+}
+
+/**
+ * Puts a texture on one view of the car, or bare paint when `film` is undefined. The
+ * scene does not take the texture over: nothing is destroyed here, so a texture that
+ * is replaced must be destroyed by its owner after this returns.
+ */
+export function bindArtboard(scene: Scene, view: View, film: Texture | undefined): void {
+  scene.car.set({ [filmBinding(view)]: film ?? scene.emptyFilm });
+}
+
+/**
+ * Puts film on all five views at once, bare paint on every view `film` leaves out.
+ * One call, so no frame can show some views from one design and some from another.
+ */
+export function bindArtboards(scene: Scene, film: Partial<Record<View, Texture>>): void {
+  scene.car.set(filmBindings(scene.emptyFilm, film));
 }
 
 /** One interleaved vertex buffer for the whole car: position, normal, tint and class. */
@@ -479,7 +488,7 @@ export function replaceHdr(gpu: Gpu, scene: Scene, size: readonly [number, numbe
 export function destroyScene(scene: Scene): void {
   runCleanups([
     ...scene.geometries.map((owned) => () => owned.destroy()),
-    ...VIEWS.map((view) => () => scene.film[view].destroy()),
+    () => scene.emptyFilm.destroy(),
     () => destroyOwned(scene.hdr),
     () => scene.env.destroy(),
   ]);

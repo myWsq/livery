@@ -1,13 +1,13 @@
 /**
  * Artboard images as the paint shader samples them: turning a rasterised artboard
- * into a texture, and keeping the five artboards of a design up to date.
+ * into a texture.
  *
  * Shared by the browser app and the Node scripts. Rasterising SVG text is the one
  * step that differs between them, so it is passed in.
  */
 import { texture, type Gpu, type Texture } from "vgpu";
 
-import { FRAMES, VIEWS, type View } from "./frames.ts";
+import { FRAMES, type View } from "./frames.ts";
 
 /** Texels per artboard millimetre. At 1 a 5 mm line is five texels wide. */
 export const TEXELS_PER_MM = 1;
@@ -25,7 +25,7 @@ export function rasterSize(view: View): [width: number, height: number] {
   return [Math.round(frame.width * TEXELS_PER_MM), Math.round(frame.height * TEXELS_PER_MM)];
 }
 
-/** A design's artboards as SVG text; a missing view has no file. */
+/** A design's artboards as SVG text; a view without a file has no film. */
 export type DesignSources = Partial<Record<View, string>>;
 
 /** Where a design's artboard lives in the repository. */
@@ -171,60 +171,8 @@ export function createEmptyArtboardTexture(gpu: Gpu): Texture {
   return result;
 }
 
-export interface ArtboardLoaderOptions {
-  /** Turns an artboard's SVG text into pixels; rejects when the SVG is broken. */
-  readonly rasterize: (svg: string, view: View) => Promise<ArtboardRaster>;
-  /** Puts a freshly rasterised artboard on the car. */
-  readonly apply: (view: View, raster: ArtboardRaster) => void;
-  /** Called with every artboard that currently fails, whenever that set may have changed. */
-  readonly report?: (problems: ReadonlyMap<View, string>) => void;
-  /** The problem reported for a view that has no file. */
-  readonly missing?: string;
-}
-
 /**
- * Keeps the car's artboards in step with a design's SVG sources. Only artboards whose
- * text changed are rasterised again; a late result never replaces a newer one; and an
- * artboard that fails keeps whatever was applied for it before.
+ * Turns an artboard's SVG text into pixels; rejects when the SVG is broken. The
+ * browser and Node each bring their own.
  */
-export function createArtboardLoader(options: ArtboardLoaderOptions) {
-  const { rasterize, apply, report, missing = "file not found" } = options;
-  const current = new Map<View, string | undefined>();
-  const tickets = new Map<View, number>();
-  const problems = new Map<View, string>();
-
-  async function refresh(view: View, svg: string | undefined): Promise<void> {
-    const ticket = (tickets.get(view) ?? 0) + 1;
-    tickets.set(view, ticket);
-    let problem: string | undefined;
-    try {
-      if (svg === undefined) throw new Error(missing);
-      const raster = await rasterize(svg, view);
-      // A newer save has taken over while this one was rasterising.
-      if (tickets.get(view) !== ticket) return;
-      apply(view, raster);
-    } catch (error) {
-      if (tickets.get(view) !== ticket) return;
-      problem = error instanceof Error ? error.message : String(error);
-    }
-    if (problem === undefined) problems.delete(view);
-    else problems.set(view, problem);
-    report?.(new Map(problems));
-  }
-
-  return {
-    /** Brings the car up to date with `sources`; resolves when every change is settled. */
-    async update(sources: DesignSources): Promise<void> {
-      const changed = VIEWS.filter((view) => {
-        const known = current.has(view);
-        const svg = sources[view];
-        if (known && current.get(view) === svg) return false;
-        current.set(view, svg);
-        return true;
-      });
-      // One at a time: rasterising a large artboard is heavy, and frames should keep
-      // flowing between them.
-      for (const view of changed) await refresh(view, sources[view]);
-    },
-  };
-}
+export type RasterizeArtboard = (svg: string, view: View) => Promise<ArtboardRaster>;
