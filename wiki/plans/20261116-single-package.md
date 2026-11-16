@@ -447,3 +447,29 @@ Out of scope:
   files and can be deleted by hand.
 - A dev server started before the merge must be restarted from the repository root.
 - Nothing is deployed.
+
+## Outcome
+
+- Status: APPROVE — 2026-11-16
+- Mode: subagent(sonnet), one work package.
+- Commits: `2536d68..7ba8570`
+- Deviations:
+  - One revision round. T8's replacement dropped the space after `pnpm` in the
+    three script header comments (`pnpmrender`), and the paragraphs shortened in
+    `AGENTS.md` had been left unwrapped. Both were comment or prose only.
+  - The constant naming this checkout's `.claude/` directory sits above the
+    plugin in `vite.config.ts` instead of directly above the exported config.
+- Verified by the orchestrator: typecheck, lint, format, build, the projection
+  check (67 assertions), reproducible guides, `render`, a frozen-lockfile install
+  and `git log --follow` on a moved file. In a browser the three designs' pictures
+  are pixel-identical to those before the move, from the dev server at the root
+  and from the production build; saving an artboard and creating and deleting a
+  design directory hot-update without a reload. The checkout this ran in lives
+  under `.claude/worktrees/`, so the last point also shows D4's ignore pattern
+  does not swallow a worktree's own files.
+- Follow-ups:
+  - D4's other half was not observed: that a dev server started in the main
+    checkout stays out of worktrees under its `.claude/`. No such nested checkout
+    exists inside the worktree where this was verified.
+  - `oxfmt` and `oxlint` run from the main checkout still walk into
+    `.claude/worktrees/`, as they did before this plan.
