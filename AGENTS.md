@@ -125,7 +125,7 @@ tool; do not generalize for other users or other cars unless asked.
 - Keep `vgpu` and `@vgpu/wgsl` on the same release; a mismatch fails at runtime with
   `VGPU-SHADER-SOURCE-VERSION`.
 - Headless rendering works on this machine (`pnpm exec vgpu doctor` reports healthy):
-  verify visual changes by rendering to pixels rather than by assumption. Three
+  verify visual changes by rendering to pixels rather than by assumption. Four
   scripts do it without a browser (they need Node 22.18 or newer, which runs their
   TypeScript directly):
   - `pnpm render [--design <name>] [--env <id>] [--turn <deg>] [--out <file.png>]
@@ -137,8 +137,21 @@ tool; do not generalize for other users or other cars unless asked.
     looks at the nose, 0 at the right side, 180 at the left, 270 at the tail; pitch 0 is
     level, 90 straight down. Use it to look at a design, a shading change or an
     environment's settings.
+  - `pnpm sheet [--design <a,b,…>] [--env <id>] [--views <id,id,…>] [--width <px>]
+    [--height <px>] [--out <file.png>]` renders a comparison sheet: one row per design
+    (default every design; `_bare` for the bare car), one column per named shot of
+    `src/shots.ts` (default `front,left,rear,above`), in one environment (default
+    `day`), each cell `--width` × `--height` (default 640 × 370), and prints its path.
   - `pnpm guides` regenerates `designs/_guides/`. Run it and commit the result whenever
-    the car model changes; stale guides put a design in the wrong place.
+    the car model changes; stale guides put a design in the wrong place. Besides each
+    `<view>.png` it writes `<view>-lines.svg`, the car's feature lines as vector paths
+    in the artboard's millimetres (also drawn over the PNG): `reach`, the outline of
+    the paint that takes its livery from this artboard, which is where a graphic must
+    meet the next artboard; the outlines of `glass`, `lights` and `wheels`; and on the
+    side views the `beltline`, `shoulder` and `sill` and the `wheel-centres` with their
+    coordinates.
+- When designing, measure from the lines file rather than from the mesh, and judge
+  every design with `pnpm sheet` under several environments before showing it.
   - `pnpm check:projection` proves the projection from pixels for the `calibration`
     design and exits non-zero when it is wrong. Run it after touching the paint shader,
     the frames, the artboard textures or the model.
