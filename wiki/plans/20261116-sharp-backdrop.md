@@ -374,3 +374,36 @@ parameter; `src/wardrobe.ts`, `src/selection.ts`, designs; `vite.config.ts`,
 
 - The repository grows by 18.1 MB of JPGs (CC0, Poly Haven, the same four assets).
 - No new dependency. Nothing is deployed.
+
+## Outcome
+
+- Status: APPROVE — 2026-11-16
+- Mode: subagent(opus), one work package, no revision round.
+- Commits: `6589e4a..9c49277`
+- Deviations:
+  - If an environment is put back on while its detail texture still exists, the
+    texture is rebound instead of fetched again; a load already in flight is not
+    started twice. Neither is in the brief; both keep "at most one detail texture"
+    and never show one photograph's detail over another.
+  - `backdrop_direction` became `backdrop_hit`, returning the direction and how far
+    the point is; its geometry is unchanged.
+  - The blur was left at the brief's starting value, 0.0015 rad at 20 m and beyond,
+    after looking at all four environments at 1728×1000.
+- Verified by the orchestrator: typecheck, lint, format, build (four `.jpg`
+  assets), the projection check (67), reproducible guides. Renders of all four
+  environments at 1728×1000, the size the owner reported: lettering on signs is
+  readable, paving joints beside the car are sharp, brightness is as before, and
+  nothing odd surrounds lamps or the sun. In a browser at that size, from the dev
+  server and the production build with identical numbers: the backdrop is soft
+  right after a change of light and sharp within 2.5 s; round trips and eight `]`
+  are pixel-identical; twenty-one fast key presses end on the right environment
+  with its own detail; a truncated `night.jpg` leaves night usable and soft with
+  the new notice, is not retried, and the other three stay sharp; no console error
+  at the committed state.
+- Follow-ups:
+  - Not measured: how long the backdrop stays soft after a switch (under 2.5 s
+    here), and the texture memory actually used.
+  - Verified at a device pixel ratio of 1 only. On a Retina display the backdrop is
+    still magnified about twice.
+  - A wrong-sized detail image fails in Node with a message that lacks the file's
+    path.
