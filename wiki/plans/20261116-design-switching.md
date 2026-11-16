@@ -542,3 +542,41 @@ Out of scope:
   say so. Nothing is deployed.
 - CI does not run `check:projection` or any browser check; both were run by hand
   for this plan.
+
+## Outcome
+
+- Status: APPROVE — 2026-11-16
+- Mode: subagent(opus), one work package (Milestone 2 depends on 1; the example
+  design and the documents were too small to dispatch separately).
+- Commits: `e1a03eb..d0504ff`
+- Deviations:
+  - D8 rested on half a check. Vite hot-updates the importer of a glob when a file
+    is _created_, but for a _deleted_ file, and for one re-created under a name it
+    had before, it also lists the file's own modules, one of which has no importer,
+    and falls back to a full page reload. The brief had put `vite.config.ts` out of
+    scope on that premise. One revision round added a `hotUpdate` hook to the
+    existing `livery:watch-designs` plugin: any change under `designs/` invalidates
+    the file's modules with the update's timestamp and hot-updates
+    `src/design-sources.ts` alone. The hook was first proven with a throwaway
+    config that was never committed.
+  - T1: `createArtboardLoader` was removed and its guarantees moved into the new
+    `wardrobe.ts`, as the brief allowed.
+  - The Milestone 1 commit also touched `renderer.ts` (a Milestone 2 file) with a
+    bridge that kept that commit buildable; the Milestone 2 commit replaced it.
+- Verified by the orchestrator, in a real browser against the dev server and
+  against the production build: the order and wrap-around of `←`/`→`; identical
+  pixels for a design before and after a round trip with the camera moved first;
+  a complete picture two frames after a key press; the five address cases; no
+  growth of `history.length`; saving, creating, deleting and re-creating artboards
+  with no reload and fresh content; a notice only for the design on screen.
+- Follow-ups:
+  - The hook reaches into Vite's module graph (`getModulesByFile`,
+    `invalidateModule` with the HMR flag). A Vite upgrade should repeat the delete
+    and re-create cases by hand; nothing automated covers them.
+  - `Cmd`+arrow was not pressed in the test (it would navigate the browser);
+    `Shift` and `Ctrl` were, and are ignored.
+  - Not measured: how long a design takes to load at page open, and the texture
+    memory actually used. Switching to a design within the first seconds after a
+    page load shows its artboards arriving.
+  - The main chain's follow-up about the artboard notice's wording is closed: the
+    notice was seen in a browser (`XML 格式错误：第 14 行第 1 列，…`).
