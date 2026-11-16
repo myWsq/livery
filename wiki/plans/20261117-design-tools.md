@@ -272,3 +272,28 @@ Out of scope: `src/` except `src/shots.ts`; designs; shaders; `wiki/`.
 | Errors              | `pnpm sheet --design nope`                                                                                                                                                            | exit 2, lists designs    |
 
 Done when all hold, no out-of-scope change, Outcome appended, README status updated.
+
+## Outcome
+
+- Status: APPROVE — 2026-11-17
+- Mode: subagent(opus), one work package, one revision round.
+- Commits: `e577849..99fabb4`
+- Deviations:
+  - The three side lines are `<path id>` elements in a `feature-lines` group, since a
+    group and its one path cannot share an id.
+  - The revision round: per-column lines spiked where small specks of a mask sat
+    above or below the surface, so masks lose pieces under 0.02 m² before column
+    extremes (0.002 m² before outlines); a wheel's centre u is the midpoint of its
+    widest row, not of its bounding box (the box put the left front 17 mm off);
+    labels enlarged; shot distances shortened from 5.2–6.2 m to 4.0–4.8 m because the
+    car filled only a third of a cell.
+- Verified by the orchestrator: typecheck, lint, format, build, projection check;
+  guides regenerate byte for byte; the left beltline is within 2 mm of the values
+  measured on the mesh; three wheel centres within 3 mm. The right front comes out
+  at u 3800: the model's right front tyre sits 76 mm further back than the left
+  (x 1.197 against 1.273), checked on the mesh, so the line is right. `pnpm sheet`
+  produced labelled sheets for four designs × four shots and for a night variant with
+  three other shots; unknown designs and views exit 2 listing the valid ones.
+- Follow-ups:
+  - The model's asymmetric front wheels: a right-side design mirrored from the left
+    misses the right front arch by 76 mm; use `right-lines.svg`.

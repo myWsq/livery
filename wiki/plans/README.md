@@ -11,4 +11,4 @@ Execute in the order listed unless a plan's `Depends on` says otherwise.
 | [20261116-lighting-environments](./20261116-lighting-environments.md) | See the livery under four real lighting environments                  | 20261116-single-package        | DONE   |
 | [20261116-sharp-backdrop](./20261116-sharp-backdrop.md)               | A sharp backdrop behind the car                                       | 20261116-lighting-environments | DONE   |
 | [20261117-porsche-911](./20261117-porsche-911.md)                     | A real high-detail car in place of the placeholder                    | 20261116-sharp-backdrop        | DONE   |
-| [20261117-design-tools](./20261117-design-tools.md)                   | Feature lines and a comparison sheet for designing liveries           | 20261117-porsche-911           | TODO   |
+| [20261117-design-tools](./20261117-design-tools.md)                   | Feature lines and a comparison sheet for designing liveries           | 20261117-porsche-911           | DONE   |
