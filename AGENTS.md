@@ -64,7 +64,11 @@ tool; do not generalize for other users or other cars unless asked.
     `groundRadius`, and the sphere of that radius beyond. The car stands on the
     photograph's ground, and its contact shadow lies on it. The floor flattens
     anything that stood near the camera, so a photograph needs open ground around the
-    camera.
+    camera. `groundRadius` is set per photograph to about the distance of the nearest
+    upright things (8 m in the warehouse, 12 to 14 m outdoors): larger, and walls and
+    trunks lean outward. The camera's farthest distance (`DISTANCE_RANGE` in
+    `src/camera.ts`) stays below the smallest radius, and its field of view is 50°
+    so the photograph is not magnified far beyond its resolution.
   - **Backdrop detail.** The backdrop is the HDR times the JPEG's local contrast: the
     JPEG at the footprint the view needs, divided by the JPEG at the HDR's resolution
     (its third mip level), so the HDR keeps the brightness and the JPEG adds only

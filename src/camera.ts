@@ -2,7 +2,12 @@ import { group, perspective, viewMatrices } from "vgpu/scene";
 
 import type { Bounds } from "./car/index.ts";
 
-export const FOV_DEGREES = 36;
+/**
+ * Vertical field of view. Wide enough that the backdrop photograph is not magnified
+ * far beyond its resolution, and narrow enough that the car is not bulged by
+ * perspective: at 60 the nose swells visibly.
+ */
+export const FOV_DEGREES = 50;
 
 /** Where the orbiting camera is: angles in radians, distance in metres from the car's centre. */
 export interface OrbitState {
@@ -13,14 +18,18 @@ export interface OrbitState {
 
 /** Pitch runs from near the horizon to nearly straight down. */
 export const PITCH_RANGE: readonly [number, number] = [0.03, 1.5];
-/** Distance runs from a door filling the screen to the whole car with room to spare. */
-export const DISTANCE_RANGE: readonly [number, number] = [1.2, 11];
+/**
+ * Distance runs from a door filling the screen to the whole car with room to spare.
+ * The far end also keeps the camera inside the smallest backdrop dome
+ * (`groundRadius` in environments.ts): outside it the backdrop would jump.
+ */
+export const DISTANCE_RANGE: readonly [number, number] = [1.2, 6.5];
 /** How close the camera may come to the car's bounding shape. */
 const CLEARANCE = 1.15;
 
 /** The front three-quarter view the workshop opens with. */
 export function initialOrbit(): OrbitState {
-  return { yaw: 0.95, pitch: 0.21, distance: 5.4 };
+  return { yaw: 0.95, pitch: 0.21, distance: 4.2 };
 }
 
 export function clampOrbit(orbit: OrbitState): void {

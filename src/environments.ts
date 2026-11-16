@@ -19,7 +19,12 @@ export interface EnvironmentSettings {
   readonly heading: number;
   /** Height above the ground the photograph was taken from, in metres. */
   readonly captureHeight: number;
-  /** Radius of the dome the backdrop is projected on, in metres. */
+  /**
+   * Radius of the dome the backdrop is projected on, in metres: about how far the
+   * nearest upright things (walls, fences, tree trunks) stood from the camera.
+   * Larger, and their lower parts are laid on the floor and lean outward; it must
+   * also stay above the camera's farthest distance (`DISTANCE_RANGE` in camera.ts).
+   */
   readonly groundRadius: number;
 }
 
@@ -59,7 +64,7 @@ export const ENVIRONMENTS: readonly Environment[] = [
     file: "day.hdr",
     backdrop: "day.jpg",
     source: { asset: "wide_street_01", author: "Sergej Majboroda" },
-    settings: { exposure: 0.4, heading: 46, captureHeight: 1.5, groundRadius: 30 },
+    settings: { exposure: 0.4, heading: 46, captureHeight: 1.5, groundRadius: 12 },
   },
   {
     id: "overcast",
@@ -67,7 +72,7 @@ export const ENVIRONMENTS: readonly Environment[] = [
     file: "overcast.hdr",
     backdrop: "overcast.jpg",
     source: { asset: "round_platform", author: "Sergej Majboroda" },
-    settings: { exposure: 0.9, heading: 0, captureHeight: 1.5, groundRadius: 30 },
+    settings: { exposure: 0.9, heading: 0, captureHeight: 1.5, groundRadius: 14 },
   },
   {
     id: "night",
@@ -75,7 +80,7 @@ export const ENVIRONMENTS: readonly Environment[] = [
     file: "night.hdr",
     backdrop: "night.jpg",
     source: { asset: "hansaplatz", author: "Greg Zaal" },
-    settings: { exposure: 0.45, heading: 0, captureHeight: 1.5, groundRadius: 30 },
+    settings: { exposure: 0.45, heading: 0, captureHeight: 1.5, groundRadius: 12 },
   },
   {
     id: "garage",
@@ -83,7 +88,7 @@ export const ENVIRONMENTS: readonly Environment[] = [
     file: "garage.hdr",
     backdrop: "garage.jpg",
     source: { asset: "empty_warehouse_01", author: "Sergej Majboroda" },
-    settings: { exposure: 0.7, heading: 0, captureHeight: 1.5, groundRadius: 30 },
+    settings: { exposure: 0.7, heading: 0, captureHeight: 1.5, groundRadius: 8 },
   },
 ];
 

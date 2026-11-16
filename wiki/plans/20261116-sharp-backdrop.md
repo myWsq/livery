@@ -407,3 +407,25 @@ parameter; `src/wardrobe.ts`, `src/selection.ts`, designs; `vite.config.ts`,
     still magnified about twice.
   - A wrong-sized detail image fails in Node with a message that lacks the file's
     path.
+
+### After the owner looked again
+
+The owner asked whether a still sharper image existed, pointed out obvious
+distortion, and then offered that the photograph need not be shown so large: the
+car may look bigger. Three sets of constants changed, by the orchestrator directly
+and verified from renders, the checks and a browser session:
+
+- **Distortion.** It came from `groundRadius`, left at 30 m for every photograph
+  (the lighting plan's own follow-up). Walls 8 to 9 m from the camera were laid on
+  the floor and leaned outward. Now 8 m in the warehouse, 12 m for day and night,
+  14 m for overcast: walls, fences, lamp posts and trunks stand upright.
+- **Magnification.** The field of view went from 36° to 50° and the opening
+  distance from 5.4 m to 4.2 m. The backdrop is magnified 1.75 times on a Retina
+  display instead of 2.4, and not at all at a pixel ratio of 1. At 60° the car's
+  nose bulges.
+- **Zoom limit.** The farthest camera distance went from 11 m to 6.5 m, so the
+  camera stays inside the smallest dome; outside it the backdrop would jump.
+- A 16384×8192 version exists for all four panoramas, as HDR or EXR only (250 to
+  380 MB each). Using it would mean tone-mapping it here, a texture beyond the
+  default WebGPU size limit, and about 700 MB of texture. Not done; offered to the
+  owner as the next step if 50° is still not sharp enough.
