@@ -66,11 +66,37 @@
           12px/1.6 ui-monospace,
           monospace;
       }
+      #design-label {
+        position: fixed;
+        left: 16px;
+        top: 16px;
+        display: flex;
+        gap: 12px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        background: rgb(18 20 24 / 60%);
+        color: #e8e8e8;
+        font:
+          13px/1.6 system-ui,
+          sans-serif;
+        pointer-events: none;
+        user-select: none;
+      }
+      #design-label[hidden] {
+        display: none;
+      }
+      #design-label .position {
+        color: #9aa0a8;
+        font-variant-numeric: tabular-nums;
+      }
     </style>
   </head>
   <body>
     <canvas></canvas>
     <div id="error" hidden></div>
+    <div id="design-label" role="status" hidden>
+      <span class="name"></span><span class="position"></span>
+    </div>
     <aside id="artboard-notice" role="status" hidden>
       <p>下列画板无法显示，车身保留它们上一次成功的画面：</p>
       <ul></ul>
