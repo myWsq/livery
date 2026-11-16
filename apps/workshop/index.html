@@ -33,11 +33,48 @@
       #error[hidden] {
         display: none;
       }
+      #artboard-notice {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        max-width: min(560px, calc(100vw - 32px));
+        padding: 10px 14px;
+        border-left: 3px solid #f0b429;
+        border-radius: 4px;
+        background: rgb(18 20 24 / 88%);
+        color: #e8e8e8;
+        font:
+          13px/1.6 system-ui,
+          sans-serif;
+      }
+      #artboard-notice[hidden] {
+        display: none;
+      }
+      #artboard-notice p {
+        margin: 0 0 4px;
+        color: #f0b429;
+      }
+      #artboard-notice ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+      #artboard-notice li {
+        overflow-wrap: anywhere;
+      }
+      #artboard-notice code {
+        font:
+          12px/1.6 ui-monospace,
+          monospace;
+      }
     </style>
   </head>
   <body>
     <canvas></canvas>
     <div id="error" hidden></div>
+    <aside id="artboard-notice" role="status" hidden>
+      <p>下列画板无法显示，车身保留它们上一次成功的画面：</p>
+      <ul></ul>
+    </aside>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

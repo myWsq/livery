@@ -24,3 +24,38 @@ export function designSources(design: string): DesignSources {
   }
   return sources;
 }
+
+interface Watcher {
+  readonly design: string;
+  readonly listener: (sources: DesignSources) => void;
+}
+
+/**
+ * Calls `listener` with a design's fresh sources whenever one of its files is saved
+ * while the dev server runs. Returns a function that stops it. Does nothing in a
+ * production build, where the design cannot change.
+ */
+export function watchDesign(
+  design: string,
+  listener: (sources: DesignSources) => void,
+): () => void {
+  const hot = import.meta.hot;
+  if (!hot) return () => {};
+  // `hot.data` outlives this module instance, so watchers survive each update.
+  const watchers: Set<Watcher> = (hot.data.watchers ??= new Set<Watcher>());
+  const watcher: Watcher = { design, listener };
+  watchers.add(watcher);
+  return () => watchers.delete(watcher);
+}
+
+if (import.meta.hot) {
+  // Saving a design file re-evaluates this module only. Accepting the update here
+  // keeps it from spreading to the renderer, so the page never reloads: the device,
+  // the baked sky and the camera stay as they are, and only the watchers hear of it.
+  import.meta.hot.accept((next) => {
+    const watchers: Set<Watcher> | undefined = import.meta.hot?.data.watchers;
+    if (!next || !watchers) return;
+    const fresh = next.designSources as typeof designSources;
+    for (const watcher of watchers) watcher.listener(fresh(watcher.design));
+  });
+}

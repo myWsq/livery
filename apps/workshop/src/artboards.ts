@@ -178,6 +178,8 @@ export interface ArtboardLoaderOptions {
   readonly apply: (view: View, raster: ArtboardRaster) => void;
   /** Called with every artboard that currently fails, whenever that set may have changed. */
   readonly report?: (problems: ReadonlyMap<View, string>) => void;
+  /** The problem reported for a view that has no file. */
+  readonly missing?: string;
 }
 
 /**
@@ -185,7 +187,8 @@ export interface ArtboardLoaderOptions {
  * text changed are rasterised again; a late result never replaces a newer one; and an
  * artboard that fails keeps whatever was applied for it before.
  */
-export function createArtboardLoader({ rasterize, apply, report }: ArtboardLoaderOptions) {
+export function createArtboardLoader(options: ArtboardLoaderOptions) {
+  const { rasterize, apply, report, missing = "file not found" } = options;
   const current = new Map<View, string | undefined>();
   const tickets = new Map<View, number>();
   const problems = new Map<View, string>();
@@ -195,7 +198,7 @@ export function createArtboardLoader({ rasterize, apply, report }: ArtboardLoade
     tickets.set(view, ticket);
     let problem: string | undefined;
     try {
-      if (svg === undefined) throw new Error("file not found");
+      if (svg === undefined) throw new Error(missing);
       const raster = await rasterize(svg, view);
       // A newer save has taken over while this one was rasterising.
       if (tickets.get(view) !== ticket) return;
@@ -206,7 +209,7 @@ export function createArtboardLoader({ rasterize, apply, report }: ArtboardLoade
     }
     if (problem === undefined) problems.delete(view);
     else problems.set(view, problem);
-    report?.(problems);
+    report?.(new Map(problems));
   }
 
   return {

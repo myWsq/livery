@@ -3,28 +3,36 @@ import { frameLoop, surface, type Gpu } from "vgpu";
 import { createArtboardLoader } from "./artboards.ts";
 import { cameraView, clampOrbit, initialOrbit } from "./camera.ts";
 import { loadCarModel } from "./car/index.ts";
-import { DESIGN, designSources } from "./design-sources.ts";
+import { DESIGN, designSources, watchDesign } from "./design-sources.ts";
+import type { View } from "./frames.ts";
 import { rasterizeArtboard } from "./rasterize.ts";
 import { aspectOf, createScene, render, replaceHdr, runCleanups, setArtboard } from "./scene.ts";
 import { sceneShaders } from "./shaders.ts";
 
 interface RendererOptions {
   readonly canvas: HTMLCanvasElement;
+  /**
+   * Called with the artboards that currently cannot be shown and why, each time that
+   * set may have changed. Empty when every artboard is fine.
+   */
+  readonly onArtboardProblems?: (problems: ReadonlyMap<View, string>) => void;
 }
 
-export function createRenderer({ canvas }: RendererOptions) {
+export function createRenderer({ canvas, onArtboardProblems }: RendererOptions) {
   let disposed = false;
   let failed = false;
   let gpu: Gpu | undefined;
   let input: ReturnType<typeof installOrbitInput> | undefined;
   let loop: { stop(): void } | undefined;
   let unsubscribeResize: (() => void) | undefined;
+  let stopWatchingDesign: (() => void) | undefined;
 
   function dispose(): void {
     if (disposed) return;
     disposed = true;
     runCleanups([
       () => loop?.stop(),
+      () => stopWatchingDesign?.(),
       () => unsubscribeResize?.(),
       () => input?.dispose(),
       () => gpu?.dispose(),
@@ -83,17 +91,25 @@ export function createRenderer({ canvas }: RendererOptions) {
       });
     });
 
-    // The car is already on screen; its artboards arrive one by one behind it.
+    // The car is already on screen; its artboards arrive one by one behind it. An
+    // artboard that fails keeps its previous image and is reported, never thrown: a
+    // broken design file must not stop the renderer.
     const artboards = createArtboardLoader({
       rasterize: rasterizeArtboard,
       apply: (view, raster) => {
         if (!disposed) setArtboard(nextGpu, scene, view, raster);
       },
       report: (problems) => {
-        for (const [view, problem] of problems) console.error(`${DESIGN}/${view}.svg: ${problem}`);
+        if (!disposed) onArtboardProblems?.(problems);
       },
+      missing: "文件不存在",
     });
     void artboards.update(designSources(DESIGN));
+    // While the dev server runs, a saved artboard arrives here without a page reload;
+    // the loader rasterises only the artboards whose text changed.
+    stopWatchingDesign = watchDesign(DESIGN, (sources) => {
+      if (!disposed) void artboards.update(sources);
+    });
   };
 
   const ready = initialize().catch((error: unknown) => {
