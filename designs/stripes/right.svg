@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 5200 1800" width="5200mm" height="1800mm">
+  <!-- Stripes artboard, RIGHT side. 1 user unit = 1 mm.
+       u (to the right) = 2600 + 1000 * x, v (down) = 1600 - 1000 * y, car frame in metres.
+       An example to switch to, not a design direction. -->
+
+  <!-- Drawing aid only: the workshop removes this group before the artboard reaches the car. -->
+  <g id="guide">
+    <image xlink:href="../_guides/right.png" x="0" y="0" width="5200" height="1800" />
+  </g>
+
+  <!-- A band along the whole side, and a pinstripe above it. -->
+  <rect x="0" y="1180" width="5200" height="120" fill="#1f4fa3" />
+  <rect x="0" y="1130" width="5200" height="20" fill="#e8562a" />
+</svg>

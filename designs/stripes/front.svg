@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 2400 1800" width="2400mm" height="1800mm">
+  <!-- Stripes artboard, FRONT. 1 user unit = 1 mm.
+       u (to the right) = 1200 - 1000 * z, v (down) = 1600 - 1000 * y, car frame in metres.
+       An example to switch to, not a design direction. -->
+
+  <!-- Drawing aid only: the workshop removes this group before the artboard reaches the car. -->
+  <g id="guide">
+    <image xlink:href="../_guides/front.png" x="0" y="0" width="2400" height="1800" />
+  </g>
+
+  <!-- The top's two bands, carried on down the nose at the same distances from the
+       centre line. -->
+  <rect x="860" y="0" width="180" height="1800" fill="#1f4fa3" />
+  <rect x="1360" y="0" width="180" height="1800" fill="#1f4fa3" />
+</svg>
