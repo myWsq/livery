@@ -23,7 +23,13 @@ import { readCarModel } from "./lib/car.ts";
 import { REPOSITORY } from "./lib/design.ts";
 import { encodePng, writePng } from "./lib/png.ts";
 import { loadSceneShaders } from "./lib/shaders.ts";
-import { columnExtremes, components, simplify, traceContours } from "./lib/trace.ts";
+import {
+  columnExtremes,
+  labelComponents,
+  simplify,
+  traceContours,
+  withoutSmall,
+} from "./lib/trace.ts";
 
 /** Guide pixels per artboard millimetre. */
 const SCALE = 0.5;
@@ -49,8 +55,14 @@ const LINE_SCALE = 1;
 const TOLERANCE = 0.75;
 /** A wheel is a wheel piece at least this large, in square millimetres (0.05 m²). */
 const WHEEL_AREA = 50_000;
-/** Length of each arm of a wheel-centre cross, in millimetres. */
-const CROSS = 120;
+/** Length of each of the two lines of a wheel-centre cross, in millimetres. */
+const CROSS = 160;
+/**
+ * Pieces of a mask smaller than this, in pixels, are dropped before it is traced: specks
+ * become no outline, and stray patches no spike on a feature line.
+ */
+const OUTLINE_MIN_AREA = 2_000;
+const EDGE_MIN_AREA = 20_000;
 
 const gpu = await init();
 try {
@@ -176,7 +188,7 @@ async function featureLines(gpu: Gpu, scene: Scene, view: View): Promise<string>
 
   const outlines = (mask: Uint8Array) =>
     path(
-      traceContours(mask, width, height)
+      traceContours(withoutSmall(mask, width, height, OUTLINE_MIN_AREA), width, height)
         .map((contour) => simplify(toMillimetres(contour), TOLERANCE, true))
         // A speck of a pixel or two simplifies to a line with no inside.
         .filter((contour) => contour.length >= 3),
@@ -184,7 +196,7 @@ async function featureLines(gpu: Gpu, scene: Scene, view: View): Promise<string>
     );
   const edge = (mask: Uint8Array, which: "top" | "bottom") =>
     path(
-      columnExtremes(mask, width, height, which)
+      columnExtremes(withoutSmall(mask, width, height, EDGE_MIN_AREA), width, height, which)
         .map((line) => simplify(toMillimetres(line), TOLERANCE, false))
         .filter((line) => line.length >= 2),
       false,
@@ -226,24 +238,37 @@ async function featureLines(gpu: Gpu, scene: Scene, view: View): Promise<string>
       ),
     );
 
-    const centres = components(wheels, width, height)
+    const { components: pieces, labels } = labelComponents(wheels, width, height);
+    const centres = pieces
+      .map((piece, index) => ({ ...piece, label: index + 1 }))
       .filter(({ area }) => area / (LINE_SCALE * LINE_SCALE) >= WHEEL_AREA)
-      .map(({ minX, minY, maxX, maxY }) => {
-        const u = (minX + maxX + 1) / 2 / LINE_SCALE;
-        const v = (minY + maxY + 1) / 2 / LINE_SCALE;
+      .map(({ minX, minY, maxX, maxY, label }) => {
+        // A lopsided outline puts its bounding box off the hub sideways; the row through
+        // the box's middle spans the wheel from edge to edge.
+        const middle = (minY + maxY + 1) / 2;
+        const row = Math.min(maxY, Math.floor(middle)) * width;
+        let first = maxX;
+        let last = minX;
+        for (let x = minX; x <= maxX; x++) {
+          if (labels[row + x] !== label) continue;
+          first = Math.min(first, x);
+          last = Math.max(last, x);
+        }
+        const u = (first + last + 1) / 2 / LINE_SCALE;
+        const v = middle / LINE_SCALE;
         const arm = CROSS / 2;
         const cross =
           `M${mm(u - arm)} ${mm(v)} L${mm(u + arm)} ${mm(v)} ` +
           `M${mm(u)} ${mm(v - arm)} L${mm(u)} ${mm(v + arm)}`;
         return (
           `    <path d="${cross}"/>\n` +
-          `    <text x="${mm(u + arm + 8)}" y="${mm(v - 12)}" stroke="none">u ${Math.round(u)} v ${Math.round(v)}</text>\n`
+          `    <text x="${mm(u + arm + 10)}" y="${mm(v - 16)}" stroke="none">u ${Math.round(u)} v ${Math.round(v)}</text>\n`
         );
       });
     groups.push(
       group(
-        'id="wheel-centres" fill="#2f9e44" stroke="#2f9e44" stroke-width="2" font-family="sans-serif" font-size="24"',
-        "Wheel centres: the centre of each wheel's outline, in artboard millimetres.",
+        'id="wheel-centres" fill="#2f9e44" stroke="#2f9e44" stroke-width="2" font-family="sans-serif" font-size="48"',
+        "Wheel centres, in artboard millimetres: v is the middle of the wheel's outline, u the middle of the row through it.",
         centres.join(""),
       ),
     );

@@ -192,11 +192,24 @@ export interface Component {
 
 /** The 4-connected pieces of a mask, in the order their first pixel is met row by row. */
 export function components(mask: Uint8Array, width: number, height: number): Component[] {
-  const seen = new Uint8Array(width * height);
+  return labelComponents(mask, width, height).components;
+}
+
+/**
+ * The 4-connected pieces of a mask, as `components` gives them, and which piece each
+ * pixel belongs to: `labels` holds 1 + the piece's index, or 0 where the mask is unset.
+ */
+export function labelComponents(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+): { components: Component[]; labels: Int32Array } {
+  const labels = new Int32Array(width * height);
   const stack = new Int32Array(width * height);
   const found: Component[] = [];
   for (let first = 0; first < mask.length; first++) {
-    if (mask[first] === 0 || seen[first]) continue;
+    if (mask[first] === 0 || labels[first] !== 0) continue;
+    const label = found.length + 1;
     let area = 0;
     let minX = width;
     let minY = height;
@@ -204,7 +217,7 @@ export function components(mask: Uint8Array, width: number, height: number): Com
     let maxY = -1;
     let top = 0;
     stack[top++] = first;
-    seen[first] = 1;
+    labels[first] = label;
     while (top > 0) {
       const pixel = stack[--top];
       const x = pixel % width;
@@ -215,8 +228,8 @@ export function components(mask: Uint8Array, width: number, height: number): Com
       if (y < minY) minY = y;
       if (y > maxY) maxY = y;
       const visit = (next: number) => {
-        if (mask[next] !== 0 && !seen[next]) {
-          seen[next] = 1;
+        if (mask[next] !== 0 && labels[next] === 0) {
+          labels[next] = label;
           stack[top++] = next;
         }
       };
@@ -227,5 +240,20 @@ export function components(mask: Uint8Array, width: number, height: number): Com
     }
     found.push({ area, minX, minY, maxX, maxY });
   }
-  return found;
+  return { components: found, labels };
+}
+
+/** A copy of a mask without its 4-connected pieces of fewer than `minArea` pixels. */
+export function withoutSmall(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  minArea: number,
+): Uint8Array {
+  const { components: found, labels } = labelComponents(mask, width, height);
+  const kept = new Uint8Array(width * height);
+  for (let i = 0; i < kept.length; i++) {
+    if (labels[i] !== 0 && found[labels[i] - 1].area >= minArea) kept[i] = 1;
+  }
+  return kept;
 }

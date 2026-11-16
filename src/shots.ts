@@ -18,13 +18,13 @@ export interface Shot {
 }
 
 export const SHOTS: readonly Shot[] = [
-  { id: "front", name: "右前", yaw: 54, pitch: 9, distance: 5.2 },
-  { id: "left", name: "左侧", yaw: 180, pitch: 3, distance: 6.0 },
-  { id: "rear", name: "左后", yaw: 225, pitch: 12, distance: 5.4 },
-  { id: "above", name: "俯视", yaw: 54, pitch: 38, distance: 6.2 },
-  { id: "right", name: "右侧", yaw: 0, pitch: 3, distance: 6.0 },
-  { id: "nose", name: "车头", yaw: 90, pitch: 6, distance: 5.6 },
-  { id: "tail", name: "车尾", yaw: 270, pitch: 6, distance: 5.6 },
+  { id: "front", name: "右前", yaw: 54, pitch: 9, distance: 4.0 },
+  { id: "left", name: "左侧", yaw: 180, pitch: 3, distance: 4.6 },
+  { id: "rear", name: "左后", yaw: 225, pitch: 12, distance: 4.2 },
+  { id: "above", name: "俯视", yaw: 54, pitch: 38, distance: 4.8 },
+  { id: "right", name: "右侧", yaw: 0, pitch: 3, distance: 4.6 },
+  { id: "nose", name: "车头", yaw: 90, pitch: 6, distance: 4.4 },
+  { id: "tail", name: "车尾", yaw: 270, pitch: 6, distance: 4.4 },
 ];
 
 /** The shots a comparison sheet shows unless told otherwise. */
