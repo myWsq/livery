@@ -22,7 +22,7 @@
 import { init, target, type Gpu } from "vgpu/node";
 
 import { TEXELS_PER_MM, type ArtboardRaster } from "../src/artboards.ts";
-import { loadCarModel, type CarModel } from "../src/car/index.ts";
+import type { CarModel } from "../src/car/index.ts";
 import {
   FRAMES,
   toArtboard,
@@ -33,6 +33,7 @@ import {
 } from "../src/frames.ts";
 import { createScene, type Scene } from "../src/scene.ts";
 import { decodeSurface, renderAligned, surfaceCode, type SurfaceSample } from "./lib/aligned.ts";
+import { readCarModel } from "./lib/car.ts";
 import { applyDesign } from "./lib/design.ts";
 import { loadSceneShaders } from "./lib/shaders.ts";
 
@@ -338,7 +339,7 @@ checkFrameDefinition();
 // Part 2: the shader follows the frame definition.
 const gpu = await init();
 try {
-  const model = loadCarModel();
+  const model = readCarModel();
   const scene = await createScene(
     gpu,
     target(gpu, { size: [8, 8] }),

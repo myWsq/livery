@@ -1,7 +1,7 @@
 import { frameLoop, surface, type Gpu, type Texture } from "vgpu";
 
 import { cameraView, clampOrbit, initialOrbit } from "./camera.ts";
-import { loadCarModel } from "./car/index.ts";
+import { fetchCarModel } from "./car-source.ts";
 import { designs, watchDesigns } from "./design-sources.ts";
 import { fetchBackdrop, fetchEnvironment } from "./environment-sources.ts";
 import { ENVIRONMENTS, environmentById, type EnvironmentId } from "./environments.ts";
@@ -138,6 +138,11 @@ export function createRenderer({
   }
 
   const initialize = async () => {
+    // The car downloads while the GPU starts; the scene waits for both. Should the
+    // renderer be disposed first, nobody awaits the car, so its failure is dropped
+    // here rather than left unhandled.
+    const carModel = fetchCarModel();
+    carModel.catch(() => {});
     const { init } = await import("vgpu");
     if (disposed) return;
     const nextGpu = await init();
@@ -148,7 +153,9 @@ export function createRenderer({
 
     gpu = nextGpu;
     const output = surface(nextGpu, canvas, { dpr: [1, 2] });
-    const scene = await createScene(nextGpu, output, sceneShaders, loadCarModel());
+    const model = await carModel;
+    if (disposed) return;
+    const scene = await createScene(nextGpu, output, sceneShaders, model);
     if (disposed) return;
 
     // The designs' artboards arrive one by one behind the car, those of the design on

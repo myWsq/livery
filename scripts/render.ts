@@ -32,7 +32,6 @@ import { frame, init, target } from "vgpu/node";
 
 import { artboardPath } from "../src/artboards.ts";
 import { cameraView, initialOrbit } from "../src/camera.ts";
-import { loadCarModel } from "../src/car/index.ts";
 import { ENVIRONMENTS, environmentById } from "../src/environments.ts";
 import {
   aspectOf,
@@ -41,6 +40,7 @@ import {
   setBackdropBlur,
   setEnvironmentTurn,
 } from "../src/scene.ts";
+import { readCarModel } from "./lib/car.ts";
 import { applyDesign, listDesigns } from "./lib/design.ts";
 import { applyEnvironment } from "./lib/environment.ts";
 import { writePng } from "./lib/png.ts";
@@ -148,7 +148,7 @@ const backdropBlur =
 const gpu = await init();
 try {
   const output = target(gpu, { size });
-  const scene = await createScene(gpu, output, await loadSceneShaders(), loadCarModel());
+  const scene = await createScene(gpu, output, await loadSceneShaders(), readCarModel());
   applyEnvironment(gpu, scene, environment, settings);
   setEnvironmentTurn(scene, turn);
   if (backdropBlur !== undefined) setBackdropBlur(scene, backdropBlur);

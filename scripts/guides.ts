@@ -11,10 +11,11 @@ import { mkdirSync } from "node:fs";
 
 import { init, target } from "vgpu/node";
 
-import { loadCarModel, type SurfaceClass } from "../src/car/index.ts";
+import type { SurfaceClass } from "../src/car/index.ts";
 import { FRAMES, VIEWS } from "../src/frames.ts";
 import { createScene } from "../src/scene.ts";
 import { decodeSurface, renderAligned, surfaceCode } from "./lib/aligned.ts";
+import { readCarModel } from "./lib/car.ts";
 import { REPOSITORY } from "./lib/design.ts";
 import { writePng } from "./lib/png.ts";
 import { loadSceneShaders } from "./lib/shaders.ts";
@@ -43,7 +44,7 @@ try {
     gpu,
     target(gpu, { size: [8, 8] }),
     await loadSceneShaders(),
-    loadCarModel(),
+    readCarModel(),
   );
   const directory = `${REPOSITORY}designs/_guides`;
   mkdirSync(directory, { recursive: true });

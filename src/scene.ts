@@ -199,9 +199,12 @@ export async function createScene(
     const emptyFilm = own(owned, createEmptyArtboardTexture(gpu));
     car.set(filmBindings(emptyFilm, {}));
 
-    const seamGeometry = own(owned, createSeamGeometry(gpu, model));
-    const seams = draw(gpu, { shader: shaders.seams, geometry: seamGeometry });
-    seams.set({ uniforms: { ...NO_VIEW, ...SEAMS, viewport: [1, 1], pixels_per_metre: 1 } });
+    // A model without seams has no seam geometry and no seam draw: an empty draw would
+    // only be warned about.
+    const unownedSeamGeometry = createSeamGeometry(gpu, model);
+    const seamGeometry = unownedSeamGeometry && own(owned, unownedSeamGeometry);
+    const seams = seamGeometry && draw(gpu, { shader: shaders.seams, geometry: seamGeometry });
+    seams?.set({ uniforms: { ...NO_VIEW, ...SEAMS, viewport: [1, 1], pixels_per_metre: 1 } });
 
     const groundGeometry = own(
       owned,
@@ -247,7 +250,7 @@ export async function createScene(
     const blur = effect(gpu, shaders.blur);
     await compileAll([
       () => car.compile(hdr),
-      () => seams.compile(hdr),
+      ...(seams ? [() => seams.compile(hdr)] : []),
       () => ground.compile(hdr),
       () => present.compile({ colors: [output.format] }),
       () => blur.compile({ colors: [HDR_FORMAT] }),
@@ -267,7 +270,9 @@ export async function createScene(
       blur,
       hdr,
       bounds,
-      geometries: [carGeometry, seamGeometry, groundGeometry],
+      geometries: seamGeometry
+        ? [carGeometry, seamGeometry, groundGeometry]
+        : [carGeometry, groundGeometry],
       emptyFilm,
       car,
       seams,
@@ -350,7 +355,10 @@ function createCarGeometry(gpu: Gpu, model: CarModel) {
   });
 }
 
-/** Every seam segment as a quad the vertex shader widens toward the viewer. */
+/**
+ * Every seam segment as a quad the vertex shader widens toward the viewer; undefined
+ * when the model has no seam segments.
+ */
 function createSeamGeometry(gpu: Gpu, model: CarModel) {
   const vertices: number[] = [];
   const indices: number[] = [];
@@ -365,6 +373,7 @@ function createSeamGeometry(gpu: Gpu, model: CarModel) {
       indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
     }
   }
+  if (indices.length === 0) return undefined;
   return geometry(gpu, {
     buffers: [
       {
@@ -663,7 +672,7 @@ function setCarView(
       output: CAR_OUTPUT[output],
     },
   });
-  scene.seams.set({
+  scene.seams?.set({
     uniforms: {
       view_projection: view.viewProjection,
       eye: view.eye,
@@ -698,7 +707,7 @@ export function renderCar(
   setCarView(scene, view, sceneTarget.size, options.output ?? "lit", seamPixels ?? 0);
   currentFrame.pass({ target: sceneTarget, clear: [0, 0, 0, 0] }, (pass) => {
     pass.draw(scene.car);
-    if (seamPixels !== undefined) pass.draw(scene.seams);
+    if (seamPixels !== undefined && scene.seams) pass.draw(scene.seams);
   });
 }
 
@@ -738,7 +747,7 @@ export function render(currentFrame: Frame, scene: Scene, output: Target, view: 
 
   currentFrame.pass({ target: scene.hdr, clear: [0, 0, 0, 0] }, (pass) => {
     pass.draw(scene.car);
-    pass.draw(scene.seams);
+    if (scene.seams) pass.draw(scene.seams);
     pass.draw(scene.ground);
   });
   currentFrame.pass({ target: output }, (pass) => pass.draw(scene.present));
