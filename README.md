@@ -8,7 +8,7 @@
 
 工坊已经能把涂装“穿”到车上：
 
-- 画面里是一辆银色的占位双门跑车（程序生成，等我自己的车模到了再换），可以拖动旋转、滚轮缩放。
+- 画面里是一辆银色的保时捷 911 Carrera 4S（开源高精模型，在我自己的车定下来之前先用它），可以拖动旋转、滚轮缩放。
 - 涂装画在左、右、顶、前、后五张 SVG 画板上，按对应方向投影到车身。只有车漆会贴上膜，玻璃、车轮、车灯和饰件不会。
 - 画板按真实尺寸绘制：1 个 SVG 单位 = 1 毫米。每张画板底下垫着一张由车模生成的参考图（`designs/_guides/`），照着画就能知道图案落在车的哪里；参考图不会出现在车上。
 - 现在有两套设计：校准图 `designs/calibration/`（毫米网格、方向箭头和几个彩色标记，用来确认投影位置和方向是对的），和一套条纹示例 `designs/stripes/`（只是用来演示切换，不是设计方向）。
@@ -22,6 +22,7 @@
 pnpm render             # 渲染一张穿着涂装的车并打印图片路径，可加 --env（光线环境）--turn（转动光线）--out --yaw --pitch --distance
 pnpm guides             # 车模变了以后，重新生成画板参考图
 pnpm check:projection   # 用像素验证投影没有错位
+pnpm import-car <车模.glb>   # 把解压后的 GLB 车模转换成工坊的车模文件
 ```
 
 接下来的方向：
@@ -46,6 +47,7 @@ pnpm dev
 - `index.html`、`src/`：3D 预览工坊，用 [vgpu](https://github.com/vercel-labs/vgpu) 直接基于 WebGPU 渲染
 - `scripts/`：不开浏览器的渲染和检查脚本
 - `designs/`：涂装设计稿，每套设计一个目录、五张 SVG 画板（`left`、`right`、`top`、`front`、`rear`）；`designs/_guides/` 是自动生成的画板参考图
+- `models/`：车模（工坊自己的紧凑格式，由 `pnpm import-car` 从 GLB 转换）
 - `environments/`：四张光线环境的全景照片，每张两个文件（Radiance `.hdr`，2048×1024；JPG，8192×4096）
 - `wiki/`：设计思路、调研和计划
 
@@ -57,6 +59,8 @@ pnpm dev
 - 阴天：[round_platform](https://polyhaven.com/a/round_platform)，Sergej Majboroda
 - 夜晚街灯：[hansaplatz](https://polyhaven.com/a/hansaplatz)，Greg Zaal
 - 车库：[old_bus_depot](https://polyhaven.com/a/old_bus_depot)，Sergej Majboroda
+
+车模是 Karol Miklas 的 [(FREE) Porsche 911 Carrera 4S](https://sketchfab.com/3d-models/free-porsche-911-carrera-4s-d01b254483794de3819786d93e0e1ebf)，以 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 发布。转换后的 `models/porsche-911.car` 按同一许可证（CC BY-SA 4.0）分发。
 
 ## License
 

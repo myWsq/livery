@@ -18,7 +18,7 @@ tool; do not generalize for other users or other cars unless asked.
   - **Car frame.** Every model and every projection uses one frame: metres; +X toward
     the nose, +Y up, +Z toward the car's right; origin on the ground under the centre of
     the car's length and width; wheels touch y = 0. A model enters the workshop only
-    through the contract in `src/car/model.ts`.
+    through the contract in `src/car/model.ts`, and it arrives as a `.car` file.
   - **Artboard frames are fixed** and defined once, in `src/frames.ts`: each view's size
     in millimetres and its mapping from car-frame metres to artboard millimetres (1 SVG
     user unit = 1 mm). They are a contract with every design file, so they never follow
@@ -99,8 +99,15 @@ tool; do not generalize for other users or other cars unless asked.
     them into `src/environments.ts`.
   - The guides and the projection check use no photograph: their scene keeps its
     neutral grey environment.
-- **The car model is replaceable.** Work starts with a placeholder two-door sports
-  car; the owner's real model comes later. Nothing may depend on one specific mesh.
+- **The car model is replaceable.** The workshop shows a Porsche 911 Carrera 4S (992)
+  by Karol Miklas, CC BY-SA 4.0, until the owner's own car is chosen. It is imported by
+  `scripts/import-car.ts` into `models/porsche-911.car`, the workshop's own compact
+  format (`src/car/format.ts`); the browser and the scripts read only that file. To
+  replace the car: decode the new GLB to a plain one
+  (`npx -y @gltf-transform/cli@4 copy <in.glb> <out.glb>`), give the import script a
+  new material table (and length and axis mapping if they differ), run
+  `pnpm import-car <out.glb>`, then `pnpm guides` and `pnpm check:projection`.
+  Nothing may depend on one specific mesh.
 - **One package, not a monorepo.** The owner's baseline for new repositories is a
   pnpm + turborepo monorepo. This repository deliberately is not one: it holds a
   single app and publishes nothing, so the workshop lives at the repository root
@@ -138,7 +145,8 @@ tool; do not generalize for other users or other cars unless asked.
   APIs: shaders are passed in (`src/shaders.ts` in the browser, `scripts/lib/shaders.ts`
   in Node), and so are SVG rasterisation, a photograph's bytes and how a detail
   image's pixels reach its texture (`src/environment-sources.ts` and
-  `src/renderer.ts` in the browser, `scripts/lib/environment.ts` in Node).
+  `src/renderer.ts` in the browser, `scripts/lib/environment.ts` in Node), and the
+  car file's bytes (`src/car-source.ts` in the browser, `scripts/lib/car.ts` in Node).
   Imports spell out the `.ts` extension because Node resolves them as written.
 - `src` started from vgpu's official `environment-map` example
   (`pnpm exec vgpu examples pull environment-map`). Search the examples before writing a
