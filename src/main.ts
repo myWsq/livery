@@ -10,6 +10,8 @@ const artboardNotice = document.querySelector<HTMLElement>("#artboard-notice")!;
 const environmentNotice = document.querySelector<HTMLElement>("#environment-notice")!;
 /** Every environment that could not be loaded, with why, in the order they failed. */
 const environmentFailures = new Map<EnvironmentId, string>();
+/** Every environment whose detail image could not be loaded, with why. */
+const backdropFailures = new Map<EnvironmentId, string>();
 let failed = false;
 
 /**
@@ -47,16 +49,35 @@ function showArtboardProblems(
   artboardNotice.hidden = items.length === 0;
 }
 
-/** Lists every environment that could not be loaded; hidden while there is none. */
-function showEnvironmentFailure(environment: EnvironmentId, message: string): void {
-  environmentFailures.set(environment, message);
-  const items = [...environmentFailures].map(([id, why]) => {
+/**
+ * Lists every environment that could not be loaded, then every one whose sharp
+ * backdrop could not; hidden while there is none.
+ */
+function showEnvironmentNotice(): void {
+  const nameOf = (id: EnvironmentId) => environmentById(id)?.name ?? id;
+  const lines = [
+    ...[...environmentFailures].map(([id, why]) => `光线环境「${nameOf(id)}」无法加载：${why}`),
+    ...[...backdropFailures].map(
+      ([id, why]) => `光线环境「${nameOf(id)}」的清晰背景无法加载，背景保持模糊：${why}`,
+    ),
+  ];
+  const items = lines.map((line) => {
     const item = document.createElement("li");
-    item.textContent = `光线环境「${environmentById(id)?.name ?? id}」无法加载：${why}`;
+    item.textContent = line;
     return item;
   });
   environmentNotice.querySelector("ul")!.replaceChildren(...items);
   environmentNotice.hidden = items.length === 0;
+}
+
+function showEnvironmentFailure(environment: EnvironmentId, message: string): void {
+  environmentFailures.set(environment, message);
+  showEnvironmentNotice();
+}
+
+function showBackdropFailure(environment: EnvironmentId, message: string): void {
+  backdropFailures.set(environment, message);
+  showEnvironmentNotice();
 }
 
 createRenderer({
@@ -64,6 +85,7 @@ createRenderer({
   onSelection: showSelection,
   onArtboardProblems: showArtboardProblems,
   onEnvironmentFailure: showEnvironmentFailure,
+  onBackdropFailure: showBackdropFailure,
 }).ready.catch((error: unknown) => {
   console.error(error);
   failed = true;

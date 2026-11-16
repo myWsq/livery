@@ -4,13 +4,15 @@
  *   pnpm render [--design name] [--env id] [--out file.png]
  *     [--yaw deg] [--pitch deg] [--distance metres] [--width px] [--height px]
  *     [--turn deg] [--exposure n] [--heading deg] [--capture-height metres]
- *     [--ground-radius metres]
+ *     [--ground-radius metres] [--backdrop-blur radians]
  *
  * `--env` names the lighting environment of `src/environments.ts` (default `day`),
  * and `--turn` turns it about the car by that many degrees on top of its heading
  * (default 0). `--exposure`, `--heading`, `--capture-height` and `--ground-radius`
  * override that environment's settings for this run only, to tune them by eye before
- * writing them into `src/environments.ts`.
+ * writing them into `src/environments.ts`. `--backdrop-blur` overrides, for this run
+ * only, the blur of the backdrop far from the car, in radians (`BACKDROP_BLUR` in
+ * `src/scene.ts`).
  *
  * Angles are in degrees: yaw 90 looks at the nose, 0 at the car's right side, 180 at
  * its left, 270 at the tail; pitch 0 is level with the car and 90 straight down.
@@ -32,7 +34,13 @@ import { artboardPath } from "../src/artboards.ts";
 import { cameraView, initialOrbit } from "../src/camera.ts";
 import { loadCarModel } from "../src/car/index.ts";
 import { ENVIRONMENTS, environmentById } from "../src/environments.ts";
-import { aspectOf, createScene, render, setEnvironmentTurn } from "../src/scene.ts";
+import {
+  aspectOf,
+  createScene,
+  render,
+  setBackdropBlur,
+  setEnvironmentTurn,
+} from "../src/scene.ts";
 import { applyDesign, listDesigns } from "./lib/design.ts";
 import { applyEnvironment } from "./lib/environment.ts";
 import { writePng } from "./lib/png.ts";
@@ -55,6 +63,7 @@ function readOptions() {
         heading: { type: "string" },
         "capture-height": { type: "string" },
         "ground-radius": { type: "string" },
+        "backdrop-blur": { type: "string" },
       },
     }).values;
   } catch (error) {
@@ -125,6 +134,10 @@ const settings = {
     environment.settings.groundRadius,
   ),
 };
+const backdropBlur =
+  values["backdrop-blur"] === undefined
+    ? undefined
+    : numberOption("backdrop-blur", values["backdrop-blur"]);
 
 const gpu = await init();
 try {
@@ -132,6 +145,7 @@ try {
   const scene = await createScene(gpu, output, await loadSceneShaders(), loadCarModel());
   applyEnvironment(gpu, scene, environment, settings);
   setEnvironmentTurn(scene, turn);
+  if (backdropBlur !== undefined) setBackdropBlur(scene, backdropBlur);
   const { problems } = await applyDesign(gpu, scene, values.design);
   for (const [view, problem] of problems) {
     console.error(`${artboardPath(values.design, view)}: ${problem}`);

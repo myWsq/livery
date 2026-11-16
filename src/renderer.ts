@@ -1,22 +1,25 @@
-import { frameLoop, surface, type Gpu } from "vgpu";
+import { frameLoop, surface, type Gpu, type Texture } from "vgpu";
 
 import { cameraView, clampOrbit, initialOrbit } from "./camera.ts";
 import { loadCarModel } from "./car/index.ts";
 import { designs, watchDesigns } from "./design-sources.ts";
-import { fetchEnvironment } from "./environment-sources.ts";
+import { fetchBackdrop, fetchEnvironment } from "./environment-sources.ts";
 import { ENVIRONMENTS, environmentById, type EnvironmentId } from "./environments.ts";
 import type { View } from "./frames.ts";
 import { decodeHdr } from "./hdr.ts";
 import { rasterizeArtboard } from "./rasterize.ts";
 import {
   aspectOf,
+  createDetailTexture,
   createEnvironmentTexture,
   createScene,
   render,
   replaceHdr,
   runCleanups,
+  setBackdropDetail,
   setEnvironment,
   setEnvironmentTurn,
+  type DetailImage,
   type EnvironmentTexture,
 } from "./scene.ts";
 import {
@@ -70,6 +73,12 @@ interface RendererOptions {
    * environment stays failed until the page is loaded again.
    */
   readonly onEnvironmentFailure?: (environment: EnvironmentId, message: string) => void;
+  /**
+   * Called once for each environment whose detail image cannot be loaded or made into
+   * a texture, with why. The environment stays usable with a soft backdrop, and its
+   * detail image is not tried again until the page is loaded again.
+   */
+  readonly onBackdropFailure?: (environment: EnvironmentId, message: string) => void;
 }
 
 export function createRenderer({
@@ -77,6 +86,7 @@ export function createRenderer({
   onSelection,
   onArtboardProblems,
   onEnvironmentFailure,
+  onBackdropFailure,
 }: RendererOptions) {
   let disposed = false;
   let failed = false;
@@ -89,6 +99,11 @@ export function createRenderer({
   let windowEvents: AbortController | undefined;
   /** Every environment loaded so far, kept until the renderer is disposed. */
   const environmentTextures = new Map<EnvironmentId, EnvironmentTexture>();
+  /**
+   * The one detail texture there is, about 176 MB, and the environment it belongs to:
+   * the last one made, kept until the next replaces it or the renderer is disposed.
+   */
+  let backdrop: { readonly id: EnvironmentId; readonly texture: Texture } | undefined;
 
   function dispose(): void {
     if (disposed) return;
@@ -101,6 +116,7 @@ export function createRenderer({
       () => unsubscribeResize?.(),
       () => input?.dispose(),
       ...[...environmentTextures.values()].map((loaded) => () => loaded.texture.destroy()),
+      () => backdrop?.texture.destroy(),
       () => gpu?.dispose(),
     ]);
   }
@@ -158,6 +174,10 @@ export function createRenderer({
     // The environment on the scene; undefined until the first one is loaded.
     let shown: EnvironmentId | undefined;
     const failures = new Set<EnvironmentId>();
+    // The environments whose detail image failed, which are never tried again, and
+    // those whose detail image is on its way.
+    const backdropFailures = new Set<EnvironmentId>();
+    const backdropsLoading = new Set<EnvironmentId>();
 
     const announce = () => {
       const environment = environmentById(selected)!;
@@ -181,9 +201,61 @@ export function createRenderer({
       if (renameAddress) writeAddress();
       announce();
     };
+    // Fetches and decodes one environment's detail image and, if that environment is
+    // still the one on the scene, makes it the one detail texture and puts it on. A
+    // failure is remembered and reported, never thrown; the backdrop stays soft. Once
+    // the renderer is disposed, a result touches nothing.
+    const loadBackdrop = async (id: EnvironmentId): Promise<void> => {
+      const reportFailure = (message: string) => {
+        if (disposed) return;
+        backdropFailures.add(id);
+        onBackdropFailure?.(id, message);
+      };
+      backdropsLoading.add(id);
+      let bitmap: ImageBitmap;
+      try {
+        bitmap = await fetchBackdrop(environmentById(id)!);
+      } catch (error) {
+        // `fetchBackdrop` already says what went wrong, shortly.
+        reportFailure(messageOf(error));
+        return;
+      } finally {
+        backdropsLoading.delete(id);
+      }
+      let texture: Texture;
+      try {
+        // Detail belongs to one photograph: a result for another is dropped.
+        if (disposed || shown !== id || backdrop?.id === id) return;
+        texture = createDetailTexture(nextGpu, scene, detailImageOf(nextGpu, bitmap));
+      } catch (error) {
+        reportFailure(`无法生成纹理（${messageOf(error)}）`);
+        return;
+      } finally {
+        // Its pixels are in the texture, or no longer wanted.
+        bitmap.close();
+      }
+      guard(() => {
+        try {
+          setBackdropDetail(scene, texture);
+        } catch (error) {
+          runCleanups([() => texture.destroy()], { error });
+        }
+        // The previous texture is no longer bound, so destroying it is safe.
+        const previous = backdrop;
+        backdrop = { id, texture };
+        previous?.texture.destroy();
+      });
+    };
     const putOn = (id: EnvironmentId) => {
       shown = id;
+      // This takes the previous environment's detail off the backdrop.
       setEnvironment(scene, environmentTextures.get(id)!, environmentById(id)!.settings);
+      if (backdrop?.id === id) {
+        setBackdropDetail(scene, backdrop.texture);
+      } else if (!backdropFailures.has(id) && !backdropsLoading.has(id)) {
+        // `loadBackdrop` never throws; only `guard` can, after failing the renderer.
+        void loadBackdrop(id);
+      }
     };
     const select = (id: EnvironmentId) => {
       selected = id;
@@ -355,6 +427,23 @@ export function createRenderer({
   });
 
   return { ready, dispose };
+}
+
+/**
+ * A decoded detail image as the scene takes it: the browser copies the bitmap into the
+ * texture itself, with no canvas in between.
+ */
+function detailImageOf(gpu: Gpu, bitmap: ImageBitmap): DetailImage {
+  return {
+    width: bitmap.width,
+    height: bitmap.height,
+    writeLevel0: (texture) =>
+      gpu.gpu.queue.copyExternalImageToTexture(
+        { source: bitmap },
+        { texture: texture.gpu, mipLevel: 0 },
+        [bitmap.width, bitmap.height],
+      ),
+  };
 }
 
 /** What a caught error says, for the owner to read. */
