@@ -101,19 +101,20 @@ until the owner has chosen a car.
   Based on: product conclusion on view boundaries.
 - **D6 Artboard frames are fixed constants, independent of the model**:
 
-  | View | Size (mm) | u (right) | v (down) | Reads as |
-  | --- | --- | --- | --- | --- |
-  | left | 5200 × 1800 | 2600 − 1000·x | 1600 − 1000·y | nose on the left |
-  | right | 5200 × 1800 | 2600 + 1000·x | 1600 − 1000·y | nose on the right |
-  | top | 5200 × 2400 | 2600 − 1000·x | 1200 − 1000·z | nose on the left, car's right side at the top |
-  | front | 2400 × 1800 | 1200 − 1000·z | 1600 − 1000·y | car's left on the viewer's right |
-  | rear | 2400 × 1800 | 1200 + 1000·z | 1600 − 1000·y | car's right on the viewer's right |
+  | View  | Size (mm)   | u (right)     | v (down)      | Reads as                                      |
+  | ----- | ----------- | ------------- | ------------- | --------------------------------------------- |
+  | left  | 5200 × 1800 | 2600 − 1000·x | 1600 − 1000·y | nose on the left                              |
+  | right | 5200 × 1800 | 2600 + 1000·x | 1600 − 1000·y | nose on the right                             |
+  | top   | 5200 × 2400 | 2600 − 1000·x | 1200 − 1000·z | nose on the left, car's right side at the top |
+  | front | 2400 × 1800 | 1200 − 1000·z | 1600 − 1000·y | car's left on the viewer's right              |
+  | rear  | 2400 × 1800 | 1200 + 1000·z | 1600 − 1000·y | car's right on the viewer's right             |
 
   Each mapping is the view a person standing on that side sees, so nothing is
   mirrored. Rejected: deriving each frame from the model's bounding box — a
   model swap would shift every existing drawing; a non-zero `viewBox` origin
   anchored at the car origin — vector editors rewrite it to `0 0` on save.
   (decided while planning)
+
 - **D7 The design's only source is `designs/<design>/<view>.svg` at the
   repository root**: one directory per design from the start. Rejected: keeping
   artboards inside `apps/workshop` — they are the product of the repository and
@@ -318,13 +319,13 @@ Depends on: Milestone 1
   mapping from car-frame metres to artboard millimetres (u to the right, v
   down): (D6)
 
-  | View | Size (mm) | u | v |
-  | --- | --- | --- | --- |
-  | left | 5200 × 1800 | 2600 − 1000·x | 1600 − 1000·y |
+  | View  | Size (mm)   | u             | v             |
+  | ----- | ----------- | ------------- | ------------- |
+  | left  | 5200 × 1800 | 2600 − 1000·x | 1600 − 1000·y |
   | right | 5200 × 1800 | 2600 + 1000·x | 1600 − 1000·y |
-  | top | 5200 × 2400 | 2600 − 1000·x | 1200 − 1000·z |
+  | top   | 5200 × 2400 | 2600 − 1000·x | 1200 − 1000·z |
   | front | 2400 × 1800 | 1200 − 1000·z | 1600 − 1000·y |
-  | rear | 2400 × 1800 | 1200 + 1000·z | 1600 − 1000·y |
+  | rear  | 2400 × 1800 | 1200 + 1000·z | 1600 − 1000·y |
 
 - Don't: derive a frame from the model's bounding box, or restate these numbers
   in a second place. (D6)
@@ -558,6 +559,7 @@ from 2, 5 on all of them. They are not independent.
 ### Scope
 
 In scope:
+
 - `apps/workshop/**`
 - `designs/**`
 - `AGENTS.md`
@@ -567,6 +569,7 @@ In scope:
 - `.gitignore` — only for new generated paths, if any
 
 Out of scope:
+
 - `.agents/skills/**` — third-party skill files
 - `wiki/**` — the orchestrator maintains plans
 - Switching between designs, any panel or control beyond the error notice,
@@ -599,18 +602,18 @@ Out of scope:
 
 ### Commands
 
-| Purpose | Command | Expected result |
-| --- | --- | --- |
-| Typecheck | `pnpm typecheck` | exit 0 |
-| Lint | `pnpm lint` | exit 0 |
-| Format | `pnpm fmt:check` | exit 0 |
-| Build | `pnpm build` | exit 0 |
-| Projection check | `pnpm --filter @livery/workshop check:projection` | exit 0 |
-| Guides reproducible | `pnpm --filter @livery/workshop guides && git status --porcelain designs/_guides` | no changes, or byte-level noise only with identical pixels |
+| Purpose                      | Command                                                                                                                 | Expected result                                                                                       |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Typecheck                    | `pnpm typecheck`                                                                                                        | exit 0                                                                                                |
+| Lint                         | `pnpm lint`                                                                                                             | exit 0                                                                                                |
+| Format                       | `pnpm fmt:check`                                                                                                        | exit 0                                                                                                |
+| Build                        | `pnpm build`                                                                                                            | exit 0                                                                                                |
+| Projection check             | `pnpm --filter @livery/workshop check:projection`                                                                       | exit 0                                                                                                |
+| Guides reproducible          | `pnpm --filter @livery/workshop guides && git status --porcelain designs/_guides`                                       | no changes, or byte-level noise only with identical pixels                                            |
 | Headless render (acceptance) | `pnpm --filter @livery/workshop render` with the arguments documented in `AGENTS.md`, three-quarter front and each side | PNGs show a recognisable silver coupé wearing the calibration grid; text on each side reads correctly |
-| Live reload (acceptance) | `pnpm dev`, open the page, rotate and zoom, edit `designs/calibration/left.svg` | car updates without reload, view unchanged |
-| Broken artboard (acceptance) | with `pnpm dev` running, make `left.svg` malformed, then repair it | notice names the file, car keeps the old image, notice clears on repair |
-| Built app (acceptance) | `pnpm build`, serve `apps/workshop/dist` | same car and design with no dev server |
+| Live reload (acceptance)     | `pnpm dev`, open the page, rotate and zoom, edit `designs/calibration/left.svg`                                         | car updates without reload, view unchanged                                                            |
+| Broken artboard (acceptance) | with `pnpm dev` running, make `left.svg` malformed, then repair it                                                      | notice names the file, car keeps the old image, notice clears on repair                               |
+| Built app (acceptance)       | `pnpm build`, serve `apps/workshop/dist`                                                                                | same car and design with no dev server                                                                |
 
 ### Done criteria
 
