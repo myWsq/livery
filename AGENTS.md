@@ -30,11 +30,17 @@ tool; do not generalize for other users or other cars unless asked.
     (+Y top, +X front, -X rear, -Z left, +Z right, -Y nothing). Two artboards are
     never blended.
   - **Only `paint` receives livery.** `glass`, `wheel`, `light` and `trim` never do.
-  - **Design files.** A design is `designs/<design>/<view>.svg`, five files. The
-    workshop shows the one named by `DESIGN` in `apps/workshop/src/design-sources.ts`
-    (`calibration`: a millimetre grid with direction arrows and markers).
-    `designs/_guides/<view>.png` are generated drawings of the car model, shared by
-    all designs; never edit them by hand.
+  - **Design files.** A design is `designs/<design>/<view>.svg`, up to five files:
+    every directory under `designs/` whose name does not start with `_` and that
+    holds at least one artboard is a design. A design may omit artboards; that side
+    of the car stays bare. Names starting with `_` are reserved: `_guides`, and
+    `_bare`, the id of the bare car. The workshop holds every design and lists them
+    by name, followed by a built-in bare car; `←`/`→` switch between them, and the
+    URL fragment names the one on screen. All of them stay resident on the GPU, so
+    each design costs about 210 MB of texture memory. `calibration` is a millimetre
+    grid with direction arrows and markers; `stripes` is an example to switch to,
+    not a design direction. `designs/_guides/<view>.png` are generated drawings of
+    the car model, shared by all designs; never edit them by hand.
   - **The `id="guide"` rule.** Each artboard starts with a group `id="guide"` holding
     one `<image>` that links `../_guides/<view>.png`, as a drawing aid. The element
     with that id is removed before the artboard is rasterised, so nothing inside it
