@@ -14,8 +14,29 @@ tool; do not generalize for other users or other cars unless asked.
   design lives on five 2D artboards (left, right, top, front, rear) at real-world
   scale and is projected onto the body from the matching direction. This keeps the
   design independent of any car model's UVs, so the model can be swapped, and keeps
-  the artboards usable as print-shop production files. (Direction agreed in
-  discussion; not implemented yet.)
+  the artboards usable as print-shop production files. What the code relies on:
+  - **Car frame.** Every model and every projection uses one frame: metres; +X toward
+    the nose, +Y up, +Z toward the car's right; origin on the ground under the centre
+    of the car's length and width; wheels touch y = 0. A model enters the workshop
+    only through the contract in `apps/workshop/src/car/model.ts`.
+  - **Artboard frames are fixed** and defined once, in `apps/workshop/src/frames.ts`:
+    each view's size in millimetres and its mapping from car-frame metres to artboard
+    millimetres (1 SVG user unit = 1 mm). They are a contract with every design file,
+    so they never follow a model's size or bounding box, and nothing restates them:
+    shader uniforms, guides and the projection check derive from that module.
+  - **Selection is a hard switch** on the dominant axis of the car-frame normal
+    (+Y top, +X front, -X rear, -Z left, +Z right, -Y nothing). Two artboards are
+    never blended.
+  - **Only `paint` receives livery.** `glass`, `wheel`, `light` and `trim` never do.
+  - **Design files.** A design is `designs/<design>/<view>.svg`, five files. The
+    workshop shows the one named by `DESIGN` in `apps/workshop/src/design-sources.ts`
+    (`calibration`: a millimetre grid with direction arrows and markers).
+    `designs/_guides/<view>.png` are generated drawings of the car model, shared by
+    all designs; never edit them by hand.
+  - **The `id="guide"` rule.** Each artboard starts with a group `id="guide"` holding
+    one `<image>` that links `../_guides/<view>.png`, as a drawing aid. The element
+    with that id is removed before the artboard is rasterised, so nothing inside it
+    reaches the car, and livery must not be put there.
 - **The car model is replaceable.** Work starts with a placeholder two-door sports
   car; the owner's real model comes later. Nothing may depend on one specific mesh.
 - **No changesets.** The repository publishes no packages, so the monorepo baseline's
@@ -30,8 +51,25 @@ tool; do not generalize for other users or other cars unless asked.
 - Keep `vgpu` and `@vgpu/wgsl` on the same release; a mismatch fails at runtime with
   `VGPU-SHADER-SOURCE-VERSION`.
 - Headless rendering works on this machine (`pnpm exec vgpu doctor` reports healthy):
-  verify visual changes by rendering to pixels through `vgpu/node` rather than by
-  assumption.
+  verify visual changes by rendering to pixels rather than by assumption. Three
+  scripts do it without a browser (they need Node 22.18 or newer, which runs their
+  TypeScript directly):
+  - `pnpm --filter @livery/workshop render [--design <name>] [--out <file.png>]
+    [--yaw <deg>] [--pitch <deg>] [--distance <m>] [--width <px>] [--height <px>]`
+    writes a PNG of the lit car wearing a design and prints its path. Yaw 90 looks at
+    the nose, 0 at the right side, 180 at the left, 270 at the tail; pitch 0 is level,
+    90 straight down. Use it to look at a design or a shading change.
+  - `pnpm --filter @livery/workshop guides` regenerates `designs/_guides/`. Run it
+    and commit the result whenever the car model changes; stale guides put a design
+    in the wrong place.
+  - `pnpm --filter @livery/workshop check:projection` proves the projection from
+    pixels for the `calibration` design and exits non-zero when it is wrong. Run it
+    after touching the paint shader, the frames, the artboard textures or the model.
+- The scene, model, frame and artboard modules under `apps/workshop/src` are shared
+  with those scripts, so they must not import `.wgsl` files or use DOM or Vite-only
+  APIs: shaders are passed in (`src/shaders.ts` in the browser,
+  `scripts/lib/shaders.ts` in Node), and so is SVG rasterisation. Imports spell out
+  the `.ts` extension because Node resolves them as written.
 - `apps/workshop/src` started from vgpu's official `environment-map` example
   (`pnpm exec vgpu examples pull environment-map`). Search the examples before
   writing a technique from scratch.
