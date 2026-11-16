@@ -640,3 +640,36 @@ Out of scope:
 - No deployment, environment variables, or migrations. New dev dependencies
   only; if a new entry was added to the allowed install scripts, name it in the
   pull request.
+
+## Outcome
+
+- Status: APPROVE — 2026-11-16
+- Mode: subagent(fable), one work package. The first run was cut off by an API
+  overload error after its five milestone commits and resumed in the same agent.
+- Commits: `06d5117..0c21c70`
+- Deviations:
+  - T11 tolerance is 2/255 plus 2% of the local contrast around an artboard pixel,
+    not a flat value: one of about nine million compared pixels was 2.7/255 off, on
+    a hard edge where the body mesh has a 3 mm sliver. Accepted because the brief
+    left "a small tolerance" open and the check stays sensitive: shifting the
+    shader's sample position by 0.5 mm fails all five views.
+  - T11 as written could not notice a wrong frame definition, since its camera and
+    its expectations derived from the same module as the shader uniforms; mirroring
+    the left artboard passed. The check now also pins sizes, two points per view
+    and the six facing directions with its own literals. This restates the frame
+    numbers in one second place, which T4 forbade elsewhere, on purpose.
+  - T1: the car model contract also carries a part `name` and an optional `tint`,
+    so that parts sharing a surface class (tyre and rim, headlight and tail light)
+    can differ. Paint ignores it.
+  - Three revision rounds instead of the two the workflow allows: a type error,
+    the review findings, and a third that only updated two comments made stale by
+    the second.
+- Follow-ups:
+  - The artboard error notice's shortened wording was verified by reading it
+    against the text Chrome produced, not seen again in a browser.
+  - `apps/workshop/tsconfig.json` now includes Node types for the scripts, so Node
+    globals also type-check inside browser code.
+  - The scripts run TypeScript directly and need Node 22.18 or newer.
+  - Rasterising and mip-filtering an artboard runs on the main thread; a save was
+    on the car within 1.5 s here, with no measurement of dropped frames.
+  - Grid shimmer in motion was not assessed; only stills were examined.
