@@ -3,9 +3,11 @@
  *
  * This is the single definition of the artboard frames. They are a contract with
  * every design file: a design is drawn in these millimetre coordinates, so a frame
- * never follows a car model's size. Shader uniforms, guide images and the projection
- * check all derive from here. It must stay free of DOM and bundler-only imports: the
- * browser app and the Node scripts both load it.
+ * never follows a car model's size. Shader uniforms and guide images derive from
+ * here. The projection check derives its camera from here too, but pins the numbers
+ * with its own literals, so a change to a frame has to be made there as well. This
+ * module must stay free of DOM and bundler-only imports: the browser app and the
+ * Node scripts both load it.
  */
 
 export const VIEWS = ["left", "right", "top", "front", "rear"] as const;

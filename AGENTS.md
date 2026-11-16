@@ -22,8 +22,10 @@ tool; do not generalize for other users or other cars unless asked.
   - **Artboard frames are fixed** and defined once, in `apps/workshop/src/frames.ts`:
     each view's size in millimetres and its mapping from car-frame metres to artboard
     millimetres (1 SVG user unit = 1 mm). They are a contract with every design file,
-    so they never follow a model's size or bounding box, and nothing restates them:
-    shader uniforms, guides and the projection check derive from that module.
+    so they never follow a model's size or bounding box. Shader uniforms and guides
+    derive from that module rather than restating the numbers. The one deliberate
+    exception is `check:projection`, which restates them as literals, as the test's
+    expectation: changing a frame means changing those literals too, on purpose.
   - **Selection is a hard switch** on the dominant axis of the car-frame normal
     (+Y top, +X front, -X rear, -Z left, +Z right, -Y nothing). Two artboards are
     never blended.
