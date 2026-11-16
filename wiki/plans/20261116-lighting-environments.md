@@ -597,3 +597,51 @@ Out of scope:
   `README.md`).
 - No new dependency, environment variable or migration. Nothing is deployed.
 - CI does not exist; every check above was run by hand.
+
+## Outcome
+
+- Status: APPROVE — 2026-11-16
+- Mode: subagent(opus), one work package.
+- Commits: `be98982..870f537`
+- Deviations:
+  - D1 and D2 changed once more after the first renders: the overcast photograph is
+    `round_platform`, not `beach_parking`. A bin about 5 m from that camera became a
+    green streak along the ground, which the planning simulation had not been run
+    from above. The final four are `wide_street_01`, `round_platform`, `hansaplatz`
+    and `empty_warehouse_01` (25.6 MB).
+  - D3's clamp was wrong and was reversed. `day.hdr` reaches 185344; clamping at the
+    half-float maximum removed 28% of the photograph's energy, nearly all of it the
+    sun. A photograph brighter than a half float is now divided as a whole, and the
+    scale is given back at the exposure, which is exact because the shading and the
+    backdrop are linear in the environment's radiance.
+  - The backdrop's blur went from the brief's 0.012 rad to 0.004 rad: at 0.012 the
+    place behind the car could not be recognised.
+  - One revision round, carrying those three, the tuned exposures (overcast 0.9,
+    night 0.45, garage 0.7; day stayed 0.4), two messages and two stale comments.
+  - The orchestrator tuned by editing `BACKDROP_CONE` and swapping
+    `environments/overcast.hdr` in the working tree for throwaway renders, restored
+    with `git restore` each time. `render` has no flag for the blur.
+- Verified by the orchestrator: typecheck, lint, format, build (four `.hdr` assets),
+  the projection check (67), reproducible guides, `render --env nope`. The decoder
+  against an independently written one: identical mean radiance and maximum for
+  three files, and for `day.hdr` the same mean once multiplied by its scale.
+  Renders of all four environments from the opening view, the left, above and far
+  away, and of the turn at 90° and 180°. In a browser, from the dev server and from
+  the production build with identical pictures: the order and wrap-around of
+  `↑`/`↓`; pixel-identical round trips with the camera moved; design and
+  environment independent of each other; eight `]` back to the same picture; the
+  address cases; a truncated `garage.hdr` named in the notice, skipped by the keys
+  and falling back to daylight from the address; an artboard saved with no reload.
+- Follow-ups:
+  - `captureHeight` (1.5 m) and `groundRadius` (30 m) were not tuned per
+    photograph; the ground's scale looked plausible in every render and was left.
+  - Objects that stood within the dome's radius are still flattened where a
+    photograph has them (planters at the edge of the round platform, boxes along
+    the warehouse wall). They are visible from high, far views.
+  - The garage is a warehouse, not a parking garage (D2).
+  - A decoding failure's detail is in English inside a Chinese notice
+    (`照片文件无法解码（data ends early）`).
+  - Not measured: load time of the four photographs, and frames dropped while one is
+    decoded on the main thread.
+  - The console showed two errors while the executor's revision was half written
+    and the dev server hot-reloaded it; none at the committed state.
