@@ -5,11 +5,19 @@
  *
  * Exits 0 only when every assertion holds, and prints the ones that fail otherwise.
  *
- * The car is rendered orthographically through each artboard's frame with the paint
- * shader's debug outputs, so a pixel of the render is the artboard pixel that should
- * land there. What the render must show is worked out here in TypeScript, from the
- * rasterised artboard and the frame definition, never from the shader's own code.
- * Both sides come from Node: the render and the resvg raster it is compared with.
+ * Two things are proven, by two parts:
+ *
+ * 1. The frame definition is the agreed one. `FRAMES`, `toArtboard` and `viewFacing`
+ *    are compared with literal expectations written in this file (`EXPECTED_FRAMES`,
+ *    `EXPECTED_FACING`). Everything else here, the shader included, derives from
+ *    `frames.ts`, so without this part a wrong sign, offset, size or facing there
+ *    would pass unnoticed.
+ * 2. The shader follows that definition. The car is rendered orthographically through
+ *    each artboard's frame with the paint shader's debug outputs, so a pixel of the
+ *    render is the artboard pixel that should land there. What the render must show
+ *    is worked out here in TypeScript, from the rasterised artboard and the frame
+ *    definition, never from the shader's own code. Both sides come from Node: the
+ *    render and the resvg raster it is compared with.
  */
 import { init, target, type Gpu } from "vgpu/node";
 
@@ -60,6 +68,38 @@ const UNDERSIDE: Omit<ArtboardFrame, "view"> = {
   v: [0, 0, 1000, 1200],
   facing: [0, -1, 0],
 };
+
+/**
+ * The agreed frame definition, as this check expects it. This is deliberately a second
+ * statement of the numbers in `frames.ts`: it is the test's expectation, so it is
+ * written out as literals and must never be imported from `frames.ts`, computed from
+ * `FRAMES`, or derived from anything the shader also reads.
+ *
+ * Per view: the artboard's size in millimetres, and where two car-frame points land
+ * on it, in millimetres (u to the right, v down). Every coordinate of both points is
+ * non-zero, so any single wrong sign, scale or offset moves at least one of them.
+ */
+const P1 = [1.5, 0.5, -0.4] as const;
+const P2 = [-1.0, 1.0, 0.7] as const;
+const EXPECTED_FRAMES: Record<
+  View,
+  { size: [number, number]; p1: [number, number]; p2: [number, number] }
+> = {
+  left: { size: [5200, 1800], p1: [1100, 1100], p2: [3600, 600] },
+  right: { size: [5200, 1800], p1: [4100, 1100], p2: [1600, 600] },
+  top: { size: [5200, 2400], p1: [1100, 1600], p2: [3600, 500] },
+  front: { size: [2400, 1800], p1: [1600, 1100], p2: [500, 600] },
+  rear: { size: [2400, 1800], p1: [800, 1100], p2: [1900, 600] },
+};
+/** The artboard a surface facing squarely along each axis takes its livery from. */
+const EXPECTED_FACING: [normal: [number, number, number], view: View | undefined][] = [
+  [[0, 0, -1], "left"],
+  [[0, 0, 1], "right"],
+  [[0, 1, 0], "top"],
+  [[1, 0, 0], "front"],
+  [[-1, 0, 0], "rear"],
+  [[0, -1, 0], undefined],
+];
 
 const failures: string[] = [];
 
@@ -254,6 +294,48 @@ function extremePaintPoint(model: CarModel, axis: readonly [number, number, numb
   return best;
 }
 
+/** Part 1: the frame definition matches the literal expectations above. */
+function checkFrameDefinition(): void {
+  const views = Object.keys(EXPECTED_FRAMES) as View[];
+  expect(
+    VIEWS.length === views.length && views.every((view) => VIEWS.includes(view)),
+    `the views are ${views.join(", ")} (${VIEWS.join(", ")})`,
+  );
+  for (const view of views) {
+    const expected = EXPECTED_FRAMES[view];
+    const frame: ArtboardFrame | undefined = FRAMES[view];
+    if (!frame) {
+      expect(false, `${view}: the frame is defined`);
+      continue;
+    }
+    expect(
+      frame.width === expected.size[0] && frame.height === expected.size[1],
+      `${view}: the artboard is ${expected.size[0]}x${expected.size[1]} mm (${frame.width}x${frame.height})`,
+    );
+    const points = [
+      ["P1", P1, expected.p1],
+      ["P2", P2, expected.p2],
+    ] as const;
+    for (const [name, point, [u, v]] of points) {
+      const found = toArtboard(frame, point);
+      expect(
+        Math.abs(found[0] - u) < 1e-6 && Math.abs(found[1] - v) < 1e-6,
+        `${view}: ${name} (${point.join(", ")}) lands at u=${u} v=${v} mm (u=${found[0]} v=${found[1]})`,
+      );
+    }
+  }
+  for (const [normal, view] of EXPECTED_FACING) {
+    const found = viewFacing(normal);
+    expect(
+      found === view,
+      `a surface facing (${normal.join(", ")}) takes its livery from ${view ?? "no artboard"} (${found ?? "no artboard"})`,
+    );
+  }
+}
+
+checkFrameDefinition();
+
+// Part 2: the shader follows the frame definition.
 const gpu = await init();
 try {
   const model = loadCarModel();

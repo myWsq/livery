@@ -9,6 +9,8 @@
  * Distance is from the car's centre. Without them the view is the one the workshop
  * opens with. `--out` is relative to the directory the command is run from and
  * defaults to a file in the system's temporary directory. Prints the file it wrote.
+ * A value that is not a number, or a width or height that is not a positive whole
+ * number, ends the script with a message naming the option.
  */
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -24,24 +26,58 @@ import { applyDesign } from "./lib/design.ts";
 import { writePng } from "./lib/png.ts";
 import { loadSceneShaders } from "./lib/shaders.ts";
 
-const { values } = parseArgs({
-  options: {
-    design: { type: "string", default: "calibration" },
-    out: { type: "string" },
-    yaw: { type: "string" },
-    pitch: { type: "string" },
-    distance: { type: "string" },
-    width: { type: "string", default: "1600" },
-    height: { type: "string", default: "900" },
-  },
-});
+function readOptions() {
+  try {
+    return parseArgs({
+      options: {
+        design: { type: "string", default: "calibration" },
+        out: { type: "string" },
+        yaw: { type: "string" },
+        pitch: { type: "string" },
+        distance: { type: "string" },
+        width: { type: "string", default: "1600" },
+        height: { type: "string", default: "900" },
+      },
+    }).values;
+  } catch (error) {
+    // The parser's own complaint (an unknown option, or a value starting with a dash
+    // that must be written as --yaw=-30), on one line like the checks below.
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`render: ${message.replace(/\s*\n\s*/g, " ")}`);
+    process.exit(2);
+  }
+}
+
+const values = readOptions();
+
+/** Ends the script over a bad option, before anything is rendered. */
+function reject(option: string, value: string, wanted: string): never {
+  console.error(`render: --${option} must be ${wanted}, got "${value}"`);
+  process.exit(2);
+}
+
+function numberOption(option: string, value: string): number {
+  // Number("") is 0, so an empty value is checked for separately.
+  const number = value.trim() === "" ? Number.NaN : Number(value);
+  if (!Number.isFinite(number)) reject(option, value, "a number");
+  return number;
+}
+
+function pixelsOption(option: string, value: string): number {
+  const number = value.trim() === "" ? Number.NaN : Number(value);
+  if (!Number.isInteger(number) || number <= 0) reject(option, value, "a positive whole number");
+  return number;
+}
 
 const orbit = initialOrbit();
-const radians = (degrees: string) => (Number(degrees) * Math.PI) / 180;
-if (values.yaw !== undefined) orbit.yaw = radians(values.yaw);
-if (values.pitch !== undefined) orbit.pitch = radians(values.pitch);
-if (values.distance !== undefined) orbit.distance = Number(values.distance);
-const size: [number, number] = [Number(values.width), Number(values.height)];
+const radians = (degrees: number) => (degrees * Math.PI) / 180;
+if (values.yaw !== undefined) orbit.yaw = radians(numberOption("yaw", values.yaw));
+if (values.pitch !== undefined) orbit.pitch = radians(numberOption("pitch", values.pitch));
+if (values.distance !== undefined) orbit.distance = numberOption("distance", values.distance);
+const size: [number, number] = [
+  pixelsOption("width", values.width),
+  pixelsOption("height", values.height),
+];
 
 const gpu = await init();
 try {

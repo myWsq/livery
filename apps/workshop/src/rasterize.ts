@@ -3,6 +3,24 @@ import { rasterSize, type ArtboardRaster } from "./artboards.ts";
 import type { View } from "./frames.ts";
 
 /**
+ * What an XML parse failure says, without the browser's boilerplate. Chrome words a
+ * `<parsererror>` as "This page contains the following errors:error on line L at
+ * column C: MESSAGE Below is a rendering of the page up to the first error."; that
+ * becomes "第 L 行第 C 列，MESSAGE". Other browsers word it differently: for them the
+ * first line of the text is kept as it is.
+ */
+export function describeParserError(text: string): string {
+  const chrome =
+    /error on line (\d+) at column (\d+):\s*([\s\S]*?)\s*(?:Below is a rendering of the page up to the first error\.)?\s*$/.exec(
+      text,
+    );
+  if (chrome && chrome[3] !== "") {
+    return `第 ${chrome[1]} 行第 ${chrome[2]} 列，${chrome[3].replace(/\s+/g, " ")}`;
+  }
+  return text.trim().split("\n")[0];
+}
+
+/**
  * Draws an artboard's SVG at the artboard texture's size and returns its pixels.
  * The element with `id="guide"` is removed first, so the guide never reaches the car.
  * Rejects when the text is not well-formed SVG or the browser cannot draw it.
@@ -12,7 +30,7 @@ export async function rasterizeArtboard(svg: string, view: View): Promise<Artboa
   // A parse failure does not throw: it comes back as a document holding a <parsererror>.
   const parserError = parsed.querySelector("parsererror");
   if (parserError) {
-    throw new Error(`XML 格式错误：${parserError.textContent?.trim().split("\n")[0] ?? ""}`);
+    throw new Error(`XML 格式错误：${describeParserError(parserError.textContent ?? "")}`);
   }
   const root = parsed.documentElement;
   if (root.localName !== "svg") throw new Error(`根元素不是 <svg>，而是 <${root.localName}>`);
