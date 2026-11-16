@@ -3,7 +3,13 @@ import { frame, type Gpu } from "vgpu";
 
 import { SURFACE_CLASSES, type SurfaceClass } from "../../src/car/index.ts";
 import { orthographicView, VIEWS, type ArtboardFrame, type View } from "../../src/frames.ts";
-import { createSceneTarget, renderCar, type CarPassOptions, type Scene } from "../../src/scene.ts";
+import {
+  createSceneTarget,
+  destroySceneTarget,
+  renderCar,
+  type CarPassOptions,
+  type Scene,
+} from "../../src/scene.ts";
 
 /**
  * Renders the car as seen through an artboard's frame, `scale` pixels per millimetre,
@@ -26,7 +32,7 @@ export async function renderAligned(
     const values = await sceneTarget.color.readFloats({ mipLevel: 0, region: "all" });
     return { width, height, values };
   } finally {
-    sceneTarget.destroy();
+    destroySceneTarget(sceneTarget);
   }
 }
 
@@ -47,16 +53,19 @@ export function surfaceCode(alpha: number): number {
   return Math.min(64, Math.max(0, Math.round(alpha * 64)));
 }
 
-const SAMPLES: (SurfaceSample | undefined)[] = Array.from({ length: 65 }, (_, code) => {
-  if (code === 0) return undefined;
-  if (code === 64) return { seam: true, surface: "paint", artboard: undefined };
-  const artboard = ((code - 1) % 8) - 1;
-  return {
-    seam: false,
-    surface: SURFACE_CLASSES[(code - 1) >> 3],
-    artboard: artboard < 0 ? undefined : VIEWS[artboard],
-  };
-});
+const SAMPLES: (SurfaceSample | undefined)[] = Array.from(
+  { length: 65 },
+  (_, code): SurfaceSample | undefined => {
+    if (code === 0) return undefined;
+    if (code === 64) return { seam: true, surface: "paint", artboard: undefined };
+    const artboard = ((code - 1) % 8) - 1;
+    return {
+      seam: false,
+      surface: SURFACE_CLASSES[(code - 1) >> 3],
+      artboard: artboard < 0 ? undefined : VIEWS[artboard],
+    };
+  },
+);
 
 /** What a surface code says; undefined where no fragment was drawn. */
 export function decodeSurface(code: number): SurfaceSample | undefined {

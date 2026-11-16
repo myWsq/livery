@@ -34,12 +34,14 @@ const DESIGN = "calibration";
 const TOLERANCE = 2;
 /**
  * On top of that, the share of the contrast between an artboard pixel and its eight
- * neighbours that a rendered pixel may be off by. It stands for a twentieth of a
- * texel of position error: the rasteriser interpolates positions on edge-on sliver
- * triangles slightly inexactly, which shows only where the artboard has a hard edge.
- * A projection that is off by a visible amount fails at every such edge.
+ * neighbours that a rendered pixel may be off by: a fiftieth of a texel of sampling
+ * error, which can only show where the artboard has a hard edge. Measured on this
+ * machine, every compared pixel is within 1.5/255 except one, 2.7/255 off on an edge
+ * of contrast 176 (1.5% of a texel) where the body mesh has a 3 mm sliver beside the
+ * front wheel arch; where the artboard is locally flat the largest difference is
+ * 0.2/255. A projection that is off by half a millimetre fails at every edge.
  */
-const EDGE_SLACK = 0.05;
+const EDGE_SLACK = 0.02;
 /** Normals this close to a tie between two axes are left out of the selection test. */
 const TIE_MARGIN = 0.02;
 /** Fewest pixels of an artboard that must be compared for the comparison to count. */

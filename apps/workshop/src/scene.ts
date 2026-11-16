@@ -490,6 +490,11 @@ export function createSceneTarget(gpu: Gpu, size: readonly [number, number]): Ta
   return target(gpu, { size, format: HDR_FORMAT, depth: true });
 }
 
+/** Releases a target made by `createSceneTarget`. */
+export function destroySceneTarget(sceneTarget: Target): void {
+  destroyOwned(sceneTarget);
+}
+
 function own<T>(owned: Set<unknown>, value: T): T {
   owned.add(value);
   return value;
