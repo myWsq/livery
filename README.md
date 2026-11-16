@@ -46,12 +46,12 @@ pnpm dev
 - `index.html`、`src/`：3D 预览工坊，用 [vgpu](https://github.com/vercel-labs/vgpu) 直接基于 WebGPU 渲染
 - `scripts/`：不开浏览器的渲染和检查脚本
 - `designs/`：涂装设计稿，每套设计一个目录、五张 SVG 画板（`left`、`right`、`top`、`front`、`rear`）；`designs/_guides/` 是自动生成的画板参考图
-- `environments/`：四张光线环境的全景照片（Radiance `.hdr`，2048×1024）
+- `environments/`：四张光线环境的全景照片，每张两个文件（Radiance `.hdr`，2048×1024；JPG，8192×4096）
 - `wiki/`：设计思路、调研和计划
 
 ## 素材
 
-四张光线环境照片来自 [Poly Haven](https://polyhaven.com)，以 CC0 发布：
+四张光线环境照片来自 [Poly Haven](https://polyhaven.com)，以 CC0 发布。每张照片用的是同一个素材的两个版本：HDR 版照亮车身、决定背景的明暗，色调映射过的 JPG 版分辨率更高，给背景补上清晰的细节。四个素材是：
 
 - 日光：[wide_street_01](https://polyhaven.com/a/wide_street_01)，Sergej Majboroda
 - 阴天：[round_platform](https://polyhaven.com/a/round_platform)，Sergej Majboroda

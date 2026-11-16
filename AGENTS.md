@@ -46,21 +46,32 @@ tool; do not generalize for other users or other cars unless asked.
     with that id is removed before the artboard is rasterised, so nothing inside it
     reaches the car, and livery must not be put there.
 - **Lighting is four real photographs.** The car is lit by one of four panoramas in
-  `environments/`: 2048×1024 equirectangular Radiance `.hdr` files, CC0, from Poly
-  Haven. Their order, names and settings live in `src/environments.ts`; `src/hdr.ts`
-  decodes them, with no dependency. Nothing is clamped: a photograph brighter than a
-  half float can hold (the sun in `day.hdr`) is divided as a whole so its brightest
-  value is the largest half float, and that scale is restored by multiplying the
-  exposure, which is exact because the shading and the backdrop are linear in the
-  environment's radiance. The browser loads all four and keeps them
-  resident, about 22 MB of texture each, so `↑`/`↓` switch instantly; the URL fragment
-  reads `#<design>@<environment>`. What the code relies on:
+  `environments/`, CC0, from Poly Haven. Each environment is two files of one
+  panorama: the 2048×1024 equirectangular Radiance `.hdr`, which lights the car and
+  sets the backdrop's brightness, and the 8192×4096 tone-mapped `.jpg`, which gives
+  the backdrop its detail. Their order, names and settings live in
+  `src/environments.ts`; `src/hdr.ts` decodes the HDRs, with no dependency. Nothing
+  is clamped: a photograph brighter than a half float can hold (the sun in `day.hdr`)
+  is divided as a whole so its brightest value is the largest half float, and that
+  scale is restored by multiplying the exposure, which is exact because the shading
+  and the backdrop are linear in the environment's radiance. The browser loads all
+  four HDRs and keeps them resident, about 22 MB of texture each, so `↑`/`↓` switch
+  instantly; only the environment on screen keeps its detail texture (about 176 MB),
+  so the backdrop sharpens a moment after a change of light. The URL fragment reads
+  `#<design>@<environment>`. What the code relies on:
   - **Backdrop.** The photograph is projected on a dome around the point it was taken
     from, `captureHeight` above the ground: a flat floor on y = 0 out to
     `groundRadius`, and the sphere of that radius beyond. The car stands on the
     photograph's ground, and its contact shadow lies on it. The floor flattens
     anything that stood near the camera, so a photograph needs open ground around the
     camera.
+  - **Backdrop detail.** The backdrop is the HDR times the JPEG's local contrast: the
+    JPEG at the footprint the view needs, divided by the JPEG at the HDR's resolution
+    (its third mip level), so the HDR keeps the brightness and the JPEG adds only
+    what the HDR is too coarse to hold. A deliberate blur grows with distance from the
+    car, from none within 5 m to `BACKDROP_BLUR` (`src/scene.ts`) from 20 m, so the
+    ground the car stands on stays sharp. Without a detail texture, as until it has
+    loaded or when it cannot load, the backdrop is the HDR alone.
   - **Reflections and ambient light** look the photograph up by direction alone, as
     if it were infinitely far away; the dome is only the backdrop.
   - **Turn.** Turning the environment by θ about +Y means that what the photograph
@@ -68,10 +79,12 @@ tool; do not generalize for other users or other cars unless asked.
     every look-up direction is rotated by −θ first. The shaders receive the
     environment's `heading` plus the scene's own turn, which `[`/`]` change by 45° and
     which stays when the environment changes.
-  - **Replacing a photograph.** Replace its file (it must be 2048×1024), tune its four
-    numbers (`exposure`, `heading`, `captureHeight`, `groundRadius`) with `render`'s
-    `--exposure`, `--heading`, `--capture-height` and `--ground-radius`, and write them
-    into `src/environments.ts`.
+  - **Replacing a photograph.** Replace both its files, the `.hdr` (it must be
+    2048×1024) and the `.jpg` (it must be 8192×4096), aligned to the pixel: the same
+    panorama in the same framing, as Poly Haven's HDR and tone-mapped JPG of one asset
+    are. Then tune its four numbers (`exposure`, `heading`, `captureHeight`,
+    `groundRadius`) with `render`'s `--exposure`, `--heading`, `--capture-height` and
+    `--ground-radius`, and write them into `src/environments.ts`.
   - The guides and the projection check use no photograph: their scene keeps its
     neutral grey environment.
 - **The car model is replaceable.** Work starts with a placeholder two-door sports
@@ -95,9 +108,11 @@ tool; do not generalize for other users or other cars unless asked.
   scripts do it without a browser (they need Node 22.18 or newer, which runs their
   TypeScript directly):
   - `pnpm render [--design <name>] [--env <id>] [--turn <deg>] [--out <file.png>]
-    [--yaw <deg>] [--pitch <deg>] [--distance <m>] [--width <px>] [--height <px>]`
-    writes a PNG of the lit car wearing a design under an environment (default `day`)
-    and prints its path. `--turn` turns the environment on top of its heading. Yaw 90
+    [--yaw <deg>] [--pitch <deg>] [--distance <m>] [--width <px>] [--height <px>]
+    [--backdrop-blur <rad>]`
+    writes a PNG of the lit car wearing a design under an environment (default `day`),
+    with the backdrop's detail, and prints its path. `--turn` turns the environment on
+    top of its heading; `--backdrop-blur` overrides `BACKDROP_BLUR` for the run. Yaw 90
     looks at the nose, 0 at the right side, 180 at the left, 270 at the tail; pitch 0 is
     level, 90 straight down. Use it to look at a design, a shading change or an
     environment's settings.
@@ -109,8 +124,9 @@ tool; do not generalize for other users or other cars unless asked.
 - The scene, model, frame, artboard and environment modules under `src` are shared
   with those scripts, so they must not import `.wgsl` files or use DOM or Vite-only
   APIs: shaders are passed in (`src/shaders.ts` in the browser, `scripts/lib/shaders.ts`
-  in Node), and so are SVG rasterisation and a photograph's bytes
-  (`src/environment-sources.ts` in the browser, `scripts/lib/environment.ts` in Node).
+  in Node), and so are SVG rasterisation, a photograph's bytes and how a detail
+  image's pixels reach its texture (`src/environment-sources.ts` and
+  `src/renderer.ts` in the browser, `scripts/lib/environment.ts` in Node).
   Imports spell out the `.ts` extension because Node resolves them as written.
 - `src` started from vgpu's official `environment-map` example
   (`pnpm exec vgpu examples pull environment-map`). Search the examples before writing a
