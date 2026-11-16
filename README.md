@@ -56,7 +56,7 @@ pnpm dev
 - 日光：[wide_street_01](https://polyhaven.com/a/wide_street_01)，Sergej Majboroda
 - 阴天：[round_platform](https://polyhaven.com/a/round_platform)，Sergej Majboroda
 - 夜晚街灯：[hansaplatz](https://polyhaven.com/a/hansaplatz)，Greg Zaal
-- 车库：[empty_warehouse_01](https://polyhaven.com/a/empty_warehouse_01)，Sergej Majboroda
+- 车库：[old_bus_depot](https://polyhaven.com/a/old_bus_depot)，Sergej Majboroda
 
 ## License
 

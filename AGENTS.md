@@ -65,7 +65,7 @@ tool; do not generalize for other users or other cars unless asked.
     photograph's ground, and its contact shadow lies on it. The floor flattens
     anything that stood near the camera, so a photograph needs open ground around the
     camera. `groundRadius` is set per photograph to about the distance of the nearest
-    upright things (8 m in the warehouse, 12 to 14 m outdoors): larger, and walls and
+    upright things (10 m in the bus depot, 12 to 14 m outdoors): larger, and walls and
     trunks lean outward. The camera's farthest distance (`DISTANCE_RANGE` in
     `src/camera.ts`) stays below the smallest radius, and its field of view is 50°
     so the photograph is not magnified far beyond its resolution.

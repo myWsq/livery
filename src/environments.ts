@@ -87,8 +87,8 @@ export const ENVIRONMENTS: readonly Environment[] = [
     name: "车库",
     file: "garage.hdr",
     backdrop: "garage.jpg",
-    source: { asset: "empty_warehouse_01", author: "Sergej Majboroda" },
-    settings: { exposure: 0.7, heading: 0, captureHeight: 1.5, groundRadius: 8 },
+    source: { asset: "old_bus_depot", author: "Sergej Majboroda" },
+    settings: { exposure: 0.95, heading: 0, captureHeight: 1.5, groundRadius: 10 },
   },
 ];
 

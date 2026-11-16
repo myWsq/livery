@@ -429,3 +429,12 @@ and verified from renders, the checks and a browser session:
   380 MB each). Using it would mean tone-mapping it here, a texture beyond the
   default WebGPU size limit, and about 700 MB of texture. Not done; offered to the
   owner as the next step if 50° is still not sharp enough.
+- **The garage photograph was replaced once more.** The owner sent a screenshot of a
+  pillar of `empty_warehouse_01` laid out along the floor. Measured on the panorama
+  (ground lines at 5, 8 and 12 m for a 1.5 m camera): its nearest pillars and a
+  partition wall stand 5 to 6 m from the camera, inside the distance the workshop's
+  own camera needs, so no radius fits it. `old_bus_depot` has open floor to its
+  nearest pillars at about 11 m; with a 10 m dome they stand upright from the
+  side, the front, the rear and the farthest zoom. It is lit by daylight through
+  openings, not by tubes. The same measurement shows only low things inside the
+  other three domes (a flower bed, soil heaps, a kerb).
