@@ -10,3 +10,4 @@ Execute in the order listed unless a plan's `Depends on` says otherwise.
 | [20261116-single-package](./20261116-single-package.md)               | One package at the repository root instead of a monorepo              | 20261116-design-switching      | DONE   |
 | [20261116-lighting-environments](./20261116-lighting-environments.md) | See the livery under four real lighting environments                  | 20261116-single-package        | DONE   |
 | [20261116-sharp-backdrop](./20261116-sharp-backdrop.md)               | A sharp backdrop behind the car                                       | 20261116-lighting-environments | DONE   |
+| [20261117-porsche-911](./20261117-porsche-911.md)                     | A real high-detail car in place of the placeholder                    | 20261116-sharp-backdrop        | TODO   |
