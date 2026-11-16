@@ -36,7 +36,7 @@ const ENV_LEVELS = 8;
 const NEUTRAL = {
   size: [4, 2],
   radiance: 0.5,
-  settings: { exposure: 1, heading: 0, captureHeight: 1.5, groundRadius: 30 },
+  settings: { exposure: 1, heading: 0, captureHeight: 1.5, groundRadius: 30, ceilingHeight: 0 },
 } as const;
 
 /**
@@ -729,6 +729,7 @@ export function render(currentFrame: Frame, scene: Scene, output: Target, view: 
       env_size,
       capture_height: settings.captureHeight,
       ground_radius: settings.groundRadius,
+      ceiling_height: settings.ceilingHeight,
       backdrop_blur: scene.backdropBlur,
       detail_texel_angle: (2 * Math.PI) / detailWidth,
       detail_size: [detailWidth, detailHeight],

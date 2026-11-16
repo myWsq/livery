@@ -4,11 +4,11 @@
  *   pnpm render [--design name] [--env id] [--out file.png]
  *     [--yaw deg] [--pitch deg] [--distance metres] [--width px] [--height px]
  *     [--turn deg] [--exposure n] [--heading deg] [--capture-height metres]
- *     [--ground-radius metres] [--backdrop-blur radians]
+ *     [--ground-radius metres] [--ceiling-height metres] [--backdrop-blur radians]
  *
  * `--env` names the lighting environment of `src/environments.ts` (default `day`),
  * and `--turn` turns it about the car by that many degrees on top of its heading
- * (default 0). `--exposure`, `--heading`, `--capture-height` and `--ground-radius`
+ * (default 0). `--exposure`, `--heading`, `--capture-height`, `--ground-radius` and `--ceiling-height`
  * override that environment's settings for this run only, to tune them by eye before
  * writing them into `src/environments.ts`. `--backdrop-blur` overrides, for this run
  * only, the blur of the backdrop far from the car, in radians (`BACKDROP_BLUR` in
@@ -63,6 +63,7 @@ function readOptions() {
         heading: { type: "string" },
         "capture-height": { type: "string" },
         "ground-radius": { type: "string" },
+        "ceiling-height": { type: "string" },
         "backdrop-blur": { type: "string" },
       },
     }).values;
@@ -132,6 +133,11 @@ const settings = {
     "ground-radius",
     values["ground-radius"],
     environment.settings.groundRadius,
+  ),
+  ceilingHeight: setting(
+    "ceiling-height",
+    values["ceiling-height"],
+    environment.settings.ceilingHeight,
   ),
 };
 const backdropBlur =

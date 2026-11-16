@@ -438,3 +438,20 @@ and verified from renders, the checks and a browser session:
   side, the front, the rear and the farthest zoom. It is lit by daylight through
   openings, not by tubes. The same measurement shows only low things inside the
   other three domes (a flower bed, soil heaps, a kerb).
+- **Leaning uprights were the camera, not the backdrop's shape.** The owner reported
+  distortion of several kinds in the three outdoor environments. Renders from six
+  directions showed buildings, lamp posts and trees leaning outward. Replacing the
+  sphere by an upright cylinder changed the pixels and not the lean; a render with
+  the camera nearly level had no lean at all. The cause was the camera tilting 9 to
+  12° down at a view the previous step had widened to 50°. The camera now stays
+  level up to about 17° below the horizon and slides its picture down instead, as a
+  shift lens does (`SHIFT_LIMIT`); the present pass's rays use the same projection,
+  checked numerically against the matrix. The cylinder stays, with a flat ceiling
+  for the indoor photograph: it is what keeps uprights straight off-centre.
+- **Things lying on the floor.** A flower bed in the overcast photograph and a
+  cabinet in the night one stand 6 to 8 m from the camera. Their radii went to 7 m
+  and 7.5 m, just short of them, so they stand upright. The price is a floor that
+  ends 7 m out: from high views the ground beyond stands up as the wall.
+- Verified from renders of all four environments in six directions, the checks, and
+  a browser session (night, overcast from the side, daylight from above at the far
+  limit; no console error). The orchestrator made these changes directly.

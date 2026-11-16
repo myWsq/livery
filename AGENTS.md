@@ -59,16 +59,23 @@ tool; do not generalize for other users or other cars unless asked.
   instantly; only the environment on screen keeps its detail texture (about 176 MB),
   so the backdrop sharpens a moment after a change of light. The URL fragment reads
   `#<design>@<environment>`. What the code relies on:
-  - **Backdrop.** The photograph is projected on a dome around the point it was taken
-    from, `captureHeight` above the ground: a flat floor on y = 0 out to
-    `groundRadius`, and the sphere of that radius beyond. The car stands on the
-    photograph's ground, and its contact shadow lies on it. The floor flattens
-    anything that stood near the camera, so a photograph needs open ground around the
-    camera. `groundRadius` is set per photograph to about the distance of the nearest
-    upright things (10 m in the bus depot, 12 to 14 m outdoors): larger, and walls and
-    trunks lean outward. The camera's farthest distance (`DISTANCE_RANGE` in
-    `src/camera.ts`) stays below the smallest radius, and its field of view is 50°
-    so the photograph is not magnified far beyond its resolution.
+  - **Backdrop.** The photograph is projected on a room around the upright axis
+    through the point it was taken from, `captureHeight` above the ground: a flat
+    floor on y = 0 out to `groundRadius`, an upright cylinder wall of that radius, and
+    for a photograph taken indoors a flat ceiling at `ceilingHeight`. The car stands on
+    the photograph's ground, and its contact shadow lies on it. Because the wall is
+    upright, everything upright in the photograph stays a straight upright line from
+    any camera position. Whatever stood nearer than `groundRadius` is laid out along
+    the floor, so the radius is set per photograph to just short of the nearest
+    upright thing (7 to 12 m), and a photograph needs open ground at least as far as
+    the camera's farthest distance (`DISTANCE_RANGE` in `src/camera.ts`, which stays
+    below the smallest radius). To judge a photograph, unroll the band below its
+    horizon and mark where the ground is 5, 8 and 12 m from a camera 1.5 m high.
+  - **Camera.** The view is 50° high, so the photograph is not magnified far beyond
+    its resolution. Up to about 17° below level the camera does not tilt: it stays
+    level and slides its picture down, as a shift lens does (`SHIFT_LIMIT` in
+    `src/camera.ts`). A tilted camera at this width makes every upright thing behind
+    the car lean outward. The present pass's rays follow the same shifted projection.
   - **Backdrop detail.** The backdrop is the HDR times the JPEG's local contrast: the
     JPEG at the footprint the view needs, divided by the JPEG at the HDR's resolution
     (its third mip level), so the HDR keeps the brightness and the JPEG adds only
@@ -86,9 +93,10 @@ tool; do not generalize for other users or other cars unless asked.
   - **Replacing a photograph.** Replace both its files, the `.hdr` (it must be
     2048×1024) and the `.jpg` (it must be 8192×4096), aligned to the pixel: the same
     panorama in the same framing, as Poly Haven's HDR and tone-mapped JPG of one asset
-    are. Then tune its four numbers (`exposure`, `heading`, `captureHeight`,
-    `groundRadius`) with `render`'s `--exposure`, `--heading`, `--capture-height` and
-    `--ground-radius`, and write them into `src/environments.ts`.
+    are. Then tune its numbers (`exposure`, `heading`, `captureHeight`,
+    `groundRadius`, and `ceilingHeight` indoors) with `render`'s `--exposure`,
+    `--heading`, `--capture-height`, `--ground-radius` and `--ceiling-height`, and write
+    them into `src/environments.ts`.
   - The guides and the projection check use no photograph: their scene keeps its
     neutral grey environment.
 - **The car model is replaceable.** Work starts with a placeholder two-door sports

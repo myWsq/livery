@@ -21,10 +21,11 @@ struct Camera {
   // Turn of the environment about +Y in radians (see `turned` in env-common.wgsl).
   env_turn: f32,
   env_size: vec2f,
-  // The backdrop's dome: the height the photograph was taken from and its radius, in
-  // metres.
+  // The backdrop's room: the height the photograph was taken from, the radius of its
+  // floor and wall, and the height of its ceiling (0 for open sky), in metres.
   capture_height: f32,
   ground_radius: f32,
+  ceiling_height: f32,
   // The blur of the backdrop far from the car, in radians.
   backdrop_blur: f32,
   // The angle one texel of the detail texture's level 0 spans, and that level's size.
@@ -50,32 +51,46 @@ struct BackdropHit {
 };
 
 // What a view ray from `eye` along the unit `direction` sees of the backdrop. The
-// photograph is projected on a dome around the capture point C = (0, capture_height, 0):
-// a flat floor on the ground plane y = 0 out to `ground_radius` from C, and beyond it
-// the sphere of that radius. The floor stays fixed on the ground as the camera moves,
-// so the car stands on the photograph's ground. An eye outside the sphere sees the
-// photograph at infinity.
+// photograph is projected on a room around the vertical axis through the capture point
+// C = (0, capture_height, 0): a flat floor on the ground plane y = 0 out to
+// `ground_radius`, an upright cylinder wall of that radius, and, where the photograph
+// was taken indoors, a flat ceiling at `ceiling_height`. The floor stays fixed on the
+// ground as the camera moves, so the car stands on the photograph's ground; and
+// because the wall is upright, whatever stands upright in the photograph (a pillar, a
+// trunk, the corner of a building) stays a straight upright line from every camera
+// position. An eye outside the wall sees the photograph at infinity.
 fn backdrop_hit(eye: vec3f, direction: vec3f) -> BackdropHit {
   let centre = vec3f(0.0, camera.capture_height, 0.0);
   let radius = camera.ground_radius;
-  let from_centre = eye - centre;
-  let c = dot(from_centre, from_centre) - radius * radius;
+  let c = dot(eye.xz, eye.xz) - radius * radius;
   if (c > 0.0) {
     return BackdropHit(direction, 1.0);
   }
   if (direction.y < 0.0) {
     let ground = eye + direction * (-eye.y / direction.y);
-    if (length(ground - centre) <= radius) {
+    if (length(ground.xz) <= radius) {
       return BackdropHit(normalize(ground - centre), far_of(ground));
     }
   }
-  // Where the ray leaves the sphere: the far root of |from_centre + s * direction| = radius.
-  let b = dot(from_centre, direction);
-  let s = -b + sqrt(max(b * b - c, 0.0));
-  return BackdropHit(normalize(from_centre + direction * s), far_of(eye + direction * s));
+  if (direction.y > 0.0 && camera.ceiling_height > 0.0) {
+    let ceiling = eye + direction * ((camera.ceiling_height - eye.y) / direction.y);
+    if (length(ceiling.xz) <= radius) {
+      return BackdropHit(normalize(ceiling - centre), far_of(ceiling));
+    }
+  }
+  // Where the ray leaves the wall: the far root of |eye.xz + s * direction.xz| = radius.
+  // A ray straight up or down the axis never does, and sees what is in its direction.
+  let a = dot(direction.xz, direction.xz);
+  if (a < 1e-8) {
+    return BackdropHit(direction, 1.0);
+  }
+  let b = dot(eye.xz, direction.xz);
+  let s = (-b + sqrt(max(b * b - a * c, 0.0))) / a;
+  let wall = eye + direction * s;
+  return BackdropHit(normalize(wall - centre), far_of(wall));
 }
 
-// How far a point of the dome is from the car, from its horizontal distance to the origin.
+// How far a point of the room is from the car, from its horizontal distance to the origin.
 fn far_of(point: vec3f) -> f32 {
   return smoothstep(BLUR_NEAR, BLUR_FAR, length(point.xz));
 }

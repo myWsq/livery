@@ -20,12 +20,22 @@ export interface OrbitState {
 export const PITCH_RANGE: readonly [number, number] = [0.03, 1.5];
 /**
  * Distance runs from a door filling the screen to the whole car with room to spare.
- * The far end also keeps the camera inside the smallest backdrop dome
+ * The far end also keeps the camera inside the wall of the smallest backdrop room
  * (`groundRadius` in environments.ts): outside it the backdrop would jump.
  */
 export const DISTANCE_RANGE: readonly [number, number] = [1.2, 6.5];
 /** How close the camera may come to the car's bounding shape. */
 const CLEARANCE = 1.15;
+
+/**
+ * How far below level the camera may look by shifting its picture instead of tilting,
+ * in radians. A camera that tilts down makes everything upright behind the car lean
+ * outward, the more so the wider the view; a camera that stays level and slides its
+ * picture down, as a shift lens does, keeps uprights upright. Up to about this angle
+ * the camera only shifts; past it the shift stays near this much and the rest is tilt,
+ * so a view from above still looks down.
+ */
+const SHIFT_LIMIT = 0.3;
 
 /** The front three-quarter view the workshop opens with. */
 export function initialOrbit(): OrbitState {
@@ -40,7 +50,8 @@ export function clampOrbit(orbit: OrbitState): void {
 /**
  * The camera looking at the centre of `subject` from an orbit position. Zooming in
  * stops at a shell around the subject rather than at a fixed radius, so the closest
- * view is a body panel filling the screen from any side.
+ * view is a body panel filling the screen from any side. The subject is always at the
+ * centre of the picture, whether the camera reaches it by shifting or by tilting.
  */
 export function cameraView(orbit: OrbitState, aspect: number, subject: Bounds) {
   const pitch = Math.max(PITCH_RANGE[0], Math.min(PITCH_RANGE[1], orbit.pitch));
@@ -67,16 +78,32 @@ export function cameraView(orbit: OrbitState, aspect: number, subject: Bounds) {
     focus[1] + direction[1] * distance,
     focus[2] + direction[2] * distance,
   ];
-  const forward: Vec3 = [-direction[0], -direction[1], -direction[2]];
-  const right = normalize(cross(forward, [0, 1, 0]));
-  const up = cross(right, forward);
+  // The subject lies `pitch` below level as seen from the camera. `shifted` of that is
+  // taken up by sliding the picture, the rest by tilting the camera.
+  const shifted = SHIFT_LIMIT * Math.tanh(pitch / SHIFT_LIMIT);
+  const tilt = pitch - shifted;
+  const shift = Math.tan(shifted);
+  const axis: Vec3 = [
+    -Math.sin(orbit.yaw) * Math.cos(tilt),
+    -Math.sin(tilt),
+    -Math.cos(orbit.yaw) * Math.cos(tilt),
+  ];
+  const right = normalize(cross(axis, [0, 1, 0]));
+  const up = cross(right, axis);
 
-  const poseNode = group({ position }).lookAt(focus);
+  const poseNode = group({ position }).lookAt([
+    position[0] + axis[0],
+    position[1] + axis[1],
+    position[2] + axis[2],
+  ]);
   const projection = perspective(
     { fov: FOV_DEGREES, near: 0.1, far: 80 },
     aspect,
     new Float32Array(16),
   );
+  // Slides the picture down by `shift` (in units of distance along the axis), which
+  // brings the subject back to the centre: clip y gains shift times the depth.
+  projection[9] = -projection[5] * shift;
   const camera = {
     position: new Float32Array(position),
     quaternion: new Float32Array(poseNode.quaternion),
@@ -85,6 +112,9 @@ export function cameraView(orbit: OrbitState, aspect: number, subject: Bounds) {
     viewProjection: new Float32Array(16),
   };
   viewMatrices(camera, projection, camera);
+  // The direction through the centre of the picture, not normalised: the axis moved
+  // down by the shift. A pixel's ray is this plus its offsets along `right` and `up`.
+  const forward: Vec3 = [axis[0] - up[0] * shift, axis[1] - up[1] * shift, axis[2] - up[2] * shift];
 
   return {
     camera,

@@ -20,12 +20,18 @@ export interface EnvironmentSettings {
   /** Height above the ground the photograph was taken from, in metres. */
   readonly captureHeight: number;
   /**
-   * Radius of the dome the backdrop is projected on, in metres: about how far the
-   * nearest upright things (walls, fences, tree trunks) stood from the camera.
-   * Larger, and their lower parts are laid on the floor and lean outward; it must
-   * also stay above the camera's farthest distance (`DISTANCE_RANGE` in camera.ts).
+   * Radius of the room the backdrop is projected on, in metres: its floor reaches
+   * that far and its upright wall stands there. Set it to about how far the nearest
+   * upright things (walls, fences, tree trunks) stood from the camera: larger, and
+   * their lower parts are laid on the floor. It must also stay above the camera's
+   * farthest distance (`DISTANCE_RANGE` in camera.ts).
    */
   readonly groundRadius: number;
+  /**
+   * Height of the room's flat ceiling, in metres, for a photograph taken indoors; 0
+   * for open sky, where the wall goes up without end.
+   */
+  readonly ceilingHeight: number;
 }
 
 export interface Environment {
@@ -64,7 +70,13 @@ export const ENVIRONMENTS: readonly Environment[] = [
     file: "day.hdr",
     backdrop: "day.jpg",
     source: { asset: "wide_street_01", author: "Sergej Majboroda" },
-    settings: { exposure: 0.4, heading: 46, captureHeight: 1.5, groundRadius: 12 },
+    settings: {
+      exposure: 0.4,
+      heading: 46,
+      captureHeight: 1.5,
+      groundRadius: 12,
+      ceilingHeight: 0,
+    },
   },
   {
     id: "overcast",
@@ -72,7 +84,7 @@ export const ENVIRONMENTS: readonly Environment[] = [
     file: "overcast.hdr",
     backdrop: "overcast.jpg",
     source: { asset: "round_platform", author: "Sergej Majboroda" },
-    settings: { exposure: 0.9, heading: 0, captureHeight: 1.5, groundRadius: 14 },
+    settings: { exposure: 0.9, heading: 0, captureHeight: 1.5, groundRadius: 7, ceilingHeight: 0 },
   },
   {
     id: "night",
@@ -80,7 +92,13 @@ export const ENVIRONMENTS: readonly Environment[] = [
     file: "night.hdr",
     backdrop: "night.jpg",
     source: { asset: "hansaplatz", author: "Greg Zaal" },
-    settings: { exposure: 0.45, heading: 0, captureHeight: 1.5, groundRadius: 12 },
+    settings: {
+      exposure: 0.45,
+      heading: 0,
+      captureHeight: 1.5,
+      groundRadius: 7.5,
+      ceilingHeight: 0,
+    },
   },
   {
     id: "garage",
@@ -88,7 +106,13 @@ export const ENVIRONMENTS: readonly Environment[] = [
     file: "garage.hdr",
     backdrop: "garage.jpg",
     source: { asset: "old_bus_depot", author: "Sergej Majboroda" },
-    settings: { exposure: 0.95, heading: 0, captureHeight: 1.5, groundRadius: 10 },
+    settings: {
+      exposure: 0.95,
+      heading: 0,
+      captureHeight: 1.5,
+      groundRadius: 10,
+      ceilingHeight: 6,
+    },
   },
 ];
 
