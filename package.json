@@ -11,7 +11,8 @@
     "lint": "oxlint",
     "render": "node scripts/render.ts",
     "guides": "node scripts/guides.ts",
-    "check:projection": "node scripts/check-projection.ts"
+    "check:projection": "node scripts/check-projection.ts",
+    "import-car": "node scripts/import-car.ts"
   },
   "dependencies": {
     "vgpu": "^0.6.0"
