@@ -45,6 +45,31 @@ tool; do not generalize for other users or other cars unless asked.
     one `<image>` that links `../_guides/<view>.png`, as a drawing aid. The element
     with that id is removed before the artboard is rasterised, so nothing inside it
     reaches the car, and livery must not be put there.
+- **Lighting is four real photographs.** The car is lit by one of four panoramas in
+  `environments/`: 2048×1024 equirectangular Radiance `.hdr` files, CC0, from Poly
+  Haven. Their order, names and settings live in `src/environments.ts`; `src/hdr.ts`
+  decodes them, with no dependency. The browser loads all four and keeps them
+  resident, about 22 MB of texture each, so `↑`/`↓` switch instantly; the URL fragment
+  reads `#<design>@<environment>`. What the code relies on:
+  - **Backdrop.** The photograph is projected on a dome around the point it was taken
+    from, `captureHeight` above the ground: a flat floor on y = 0 out to
+    `groundRadius`, and the sphere of that radius beyond. The car stands on the
+    photograph's ground, and its contact shadow lies on it. The floor flattens
+    anything that stood near the camera, so a photograph needs open ground around the
+    camera.
+  - **Reflections and ambient light** look the photograph up by direction alone, as
+    if it were infinitely far away; the dome is only the backdrop.
+  - **Turn.** Turning the environment by θ about +Y means that what the photograph
+    shows at azimuth a (`atan2(z, x)`, from +X toward +Z) is seen at azimuth a + θ:
+    every look-up direction is rotated by −θ first. The shaders receive the
+    environment's `heading` plus the scene's own turn, which `[`/`]` change by 45° and
+    which stays when the environment changes.
+  - **Replacing a photograph.** Replace its file (it must be 2048×1024), tune its four
+    numbers (`exposure`, `heading`, `captureHeight`, `groundRadius`) with `render`'s
+    `--exposure`, `--heading`, `--capture-height` and `--ground-radius`, and write them
+    into `src/environments.ts`.
+  - The guides and the projection check use no photograph: their scene keeps its
+    neutral grey environment.
 - **The car model is replaceable.** Work starts with a placeholder two-door sports
   car; the owner's real model comes later. Nothing may depend on one specific mesh.
 - **One package, not a monorepo.** The owner's baseline for new repositories is a
@@ -65,21 +90,24 @@ tool; do not generalize for other users or other cars unless asked.
   verify visual changes by rendering to pixels rather than by assumption. Three
   scripts do it without a browser (they need Node 22.18 or newer, which runs their
   TypeScript directly):
-  - `pnpm render [--design <name>] [--out <file.png>] [--yaw <deg>] [--pitch <deg>]
-    [--distance <m>] [--width <px>] [--height <px>]` writes a PNG of the lit car wearing
-    a design and prints its path. Yaw 90 looks at the nose, 0 at the right side, 180 at
-    the left, 270 at the tail; pitch 0 is level, 90 straight down. Use it to look at a
-    design or a shading change.
+  - `pnpm render [--design <name>] [--env <id>] [--turn <deg>] [--out <file.png>]
+    [--yaw <deg>] [--pitch <deg>] [--distance <m>] [--width <px>] [--height <px>]`
+    writes a PNG of the lit car wearing a design under an environment (default `day`)
+    and prints its path. `--turn` turns the environment on top of its heading. Yaw 90
+    looks at the nose, 0 at the right side, 180 at the left, 270 at the tail; pitch 0 is
+    level, 90 straight down. Use it to look at a design, a shading change or an
+    environment's settings.
   - `pnpm guides` regenerates `designs/_guides/`. Run it and commit the result whenever
     the car model changes; stale guides put a design in the wrong place.
   - `pnpm check:projection` proves the projection from pixels for the `calibration`
     design and exits non-zero when it is wrong. Run it after touching the paint shader,
     the frames, the artboard textures or the model.
-- The scene, model, frame and artboard modules under `src` are shared with those
-  scripts, so they must not import `.wgsl` files or use DOM or Vite-only APIs: shaders
-  are passed in (`src/shaders.ts` in the browser, `scripts/lib/shaders.ts` in Node), and
-  so is SVG rasterisation. Imports spell out the `.ts` extension because Node resolves
-  them as written.
+- The scene, model, frame, artboard and environment modules under `src` are shared
+  with those scripts, so they must not import `.wgsl` files or use DOM or Vite-only
+  APIs: shaders are passed in (`src/shaders.ts` in the browser, `scripts/lib/shaders.ts`
+  in Node), and so are SVG rasterisation and a photograph's bytes
+  (`src/environment-sources.ts` in the browser, `scripts/lib/environment.ts` in Node).
+  Imports spell out the `.ts` extension because Node resolves them as written.
 - `src` started from vgpu's official `environment-map` example
   (`pnpm exec vgpu examples pull environment-map`). Search the examples before writing a
   technique from scratch.
