@@ -18,9 +18,9 @@
 不开浏览器也能看效果和做检查（需要 Node 22.18 以上）：
 
 ```sh
-pnpm --filter @livery/workshop render             # 渲染一张穿着涂装的车并打印图片路径，可加 --out --yaw --pitch --distance
-pnpm --filter @livery/workshop guides             # 车模变了以后，重新生成画板参考图
-pnpm --filter @livery/workshop check:projection   # 用像素验证投影没有错位
+pnpm render             # 渲染一张穿着涂装的车并打印图片路径，可加 --out --yaw --pitch --distance
+pnpm guides             # 车模变了以后，重新生成画板参考图
+pnpm check:projection   # 用像素验证投影没有错位
 ```
 
 接下来的方向：
@@ -43,7 +43,8 @@ pnpm dev
 
 ## 结构
 
-- `apps/workshop`：3D 预览工坊，用 [vgpu](https://github.com/vercel-labs/vgpu) 直接基于 WebGPU 渲染
+- `index.html`、`src/`：3D 预览工坊，用 [vgpu](https://github.com/vercel-labs/vgpu) 直接基于 WebGPU 渲染
+- `scripts/`：不开浏览器的渲染和检查脚本
 - `designs/`：涂装设计稿，每套设计一个目录、五张 SVG 画板（`left`、`right`、`top`、`front`、`rear`）；`designs/_guides/` 是自动生成的画板参考图
 - `wiki/`：设计思路、调研和计划
 
