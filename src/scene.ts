@@ -21,7 +21,7 @@ import {
   type Rgb,
   type SurfaceClass,
 } from "./car/index.ts";
-import { ENVIRONMENT_SIZE, type EnvironmentSettings } from "./environments.ts";
+import { BACKDROP_SIZE, ENVIRONMENT_SIZE, type EnvironmentSettings } from "./environments.ts";
 import { frameUniforms, VIEWS, type View } from "./frames.ts";
 import { halfFloat, type HdrImage } from "./hdr.ts";
 
@@ -39,8 +39,23 @@ const NEUTRAL = {
   settings: { exposure: 1, heading: 0, captureHeight: 1.5, groundRadius: 30 },
 } as const;
 
-/** The least blur of the backdrop, in radians: the photograph behind the car stays soft. */
-const BACKDROP_CONE = 0.004;
+/**
+ * The blur of the backdrop far from the car, in radians; the present pass fades it out
+ * toward the car, so the ground the car stands on is not blurred. `setBackdropBlur`
+ * overrides it.
+ */
+const BACKDROP_BLUR = 0.0015;
+
+/**
+ * A detail image's texture: sRGB, so that sampling it and reducing its levels work in
+ * linear light.
+ */
+const DETAIL_FORMAT: GPUTextureFormat = "rgba8unorm-srgb";
+/**
+ * Mip levels of a detail texture: the image, then two exact 2 × 2 reductions. The last
+ * has the size of an environment texture's level 0.
+ */
+const DETAIL_LEVELS = 3;
 
 /** Base colour of a part that brings no tint of its own, linear RGB. */
 const DEFAULT_TINT: Record<SurfaceClass, Rgb> = {
@@ -92,6 +107,21 @@ export interface EnvironmentTexture {
   readonly scale: number;
 }
 
+/**
+ * A detail image before it is a texture: its size, and how its pixels get into level 0
+ * of the texture made for it. The browser copies an image bitmap there, Node writes
+ * decoded RGBA bytes; the scene only makes the texture and its other levels.
+ */
+export interface DetailImage {
+  readonly width: number;
+  readonly height: number;
+  /**
+   * Fills level 0 of `texture`: `rgba8unorm-srgb`, the image's size, rows from the top,
+   * with the usages `texture_binding`, `copy_dst` and `render_attachment`.
+   */
+  readonly writeLevel0: (texture: Texture) => void;
+}
+
 /** What lights the scene: an environment texture and how it is fitted to the car. */
 export interface SceneEnvironment extends EnvironmentTexture {
   readonly settings: EnvironmentSettings;
@@ -137,6 +167,9 @@ export async function createScene(
       scale: 1,
       settings: NEUTRAL.settings,
     };
+    // Without a detail texture the backdrop is bound to this white one, which makes
+    // its detail factor exactly 1. The scene owns only this one.
+    const white = own(owned, createWhiteDetail(gpu));
     const bounds = modelBounds(model);
 
     const carGeometry = own(owned, createCarGeometry(gpu, model));
@@ -205,10 +238,12 @@ export async function createScene(
     present.set({
       env_tex: neutral,
       env_samp: envSampler,
+      detail_tex: white,
       scene_tex: hdr,
       scene_samp: sceneSampler,
     });
-    // Kept for every photograph made into an environment texture for this scene.
+    // Kept for every photograph made into an environment texture for this scene and,
+    // with no direction, for every reduction of a detail texture's levels.
     const blur = effect(gpu, shaders.blur);
     await compileAll([
       () => car.compile(hdr),
@@ -216,12 +251,18 @@ export async function createScene(
       () => ground.compile(hdr),
       () => present.compile({ colors: [output.format] }),
       () => blur.compile({ colors: [HDR_FORMAT] }),
+      () => blur.compile({ colors: [DETAIL_FORMAT] }),
     ]);
     return {
       environment,
       /** The scene's own turn of the environment in radians, added to its heading. */
       turn: 0,
+      /** The detail texture the backdrop is bound to: the white one when there is none. */
+      detail: white,
+      /** The backdrop's blur far from the car, in radians. */
+      backdropBlur: BACKDROP_BLUR,
       neutral,
+      white,
       envSampler,
       blur,
       hdr,
@@ -412,6 +453,88 @@ export function createEnvironmentTexture(
   }
 }
 
+/**
+ * Turns a detail image into a detail texture: level 0 is the image, filled by
+ * `image.writeLevel0`, and each further level is the one above reduced by an exact
+ * 2 × 2 average, in linear light. The texture belongs to the caller, who puts it on
+ * with `setBackdropDetail` and destroys it once no scene shows it.
+ */
+export function createDetailTexture(gpu: Gpu, scene: Scene, image: DetailImage): Texture {
+  const [width, height] = BACKDROP_SIZE;
+  if (image.width !== width || image.height !== height) {
+    throw new Error(
+      `a detail image must be ${width} × ${height} pixels, not ${image.width} × ${image.height}`,
+    );
+  }
+  const owned = new Set<unknown>();
+  try {
+    const detail = own(
+      owned,
+      gpu.device.createTexture({
+        kind: "2d",
+        size: [width, height],
+        format: DETAIL_FORMAT,
+        mipLevelCount: DETAIL_LEVELS,
+        usage: ["texture_binding", "copy_dst", "render_attachment"],
+      }),
+    );
+    image.writeLevel0(detail);
+    // A target half the size of its source, sampled with linear filtering at the centre
+    // of each of its texels, averages exactly the 2 × 2 source texels under it; the blur
+    // with no direction samples its source only there.
+    let source: Target | Texture = detail;
+    const releaseSource = () => {
+      if (source !== detail) release(owned, source);
+    };
+    for (let level = 1; level < DETAIL_LEVELS; level++) {
+      const size: [number, number] = [width >> level, height >> level];
+      const reduced = own(owned, target(gpu, { size, format: DETAIL_FORMAT }));
+      scene.blur.set({
+        src: source,
+        src_samp: scene.envSampler,
+        blur: {
+          texel: [1 / size[0], 1 / size[1]],
+          direction: [0, 0],
+          radius: 0,
+          equirect_compensation: 0,
+        },
+      });
+      frame(gpu, (currentFrame) =>
+        currentFrame.pass({ target: reduced }, (pass) => pass.draw(scene.blur)),
+      );
+      copyIntoLevel(gpu, reduced, detail, level);
+      releaseSource();
+      source = reduced;
+    }
+    releaseSource();
+    owned.delete(detail);
+    return detail;
+  } catch (error) {
+    runCleanups(cleanupOwned(owned), { error });
+  }
+}
+
+/** The detail texture of no detail: one white texel, which makes the backdrop's factor 1. */
+function createWhiteDetail(gpu: Gpu): Texture {
+  const white = gpu.device.createTexture({
+    kind: "2d",
+    size: [1, 1],
+    format: DETAIL_FORMAT,
+    usage: ["texture_binding", "copy_dst"],
+  });
+  try {
+    gpu.gpu.queue.writeTexture(
+      { texture: white.gpu, mipLevel: 0 },
+      new Uint8Array([255, 255, 255, 255]),
+      { bytesPerRow: 4, rowsPerImage: 1 },
+      [1, 1, 1],
+    );
+    return white;
+  } catch (error) {
+    runCleanups([() => white.destroy()], { error });
+  }
+}
+
 /** The neutral environment: one level of uniform grey, as many texels as `NEUTRAL` says. */
 function createNeutralEnvironment(gpu: Gpu): Texture {
   const [width, height] = NEUTRAL.size;
@@ -458,7 +581,9 @@ function environmentUniforms(env: Texture) {
 /**
  * Lights the scene with an environment texture, fitted to the car by `settings`. It
  * only rebinds and stores: nothing is baked or destroyed, so it is cheap to call at
- * any time, and the texture it replaces still belongs to whoever made it.
+ * any time, and the texture it replaces still belongs to whoever made it. It also
+ * takes any detail texture off the backdrop: detail belongs to one photograph and is
+ * never shown over another, so the new photograph's detail is put on after this.
  */
 export function setEnvironment(
   scene: Scene,
@@ -467,8 +592,26 @@ export function setEnvironment(
 ): void {
   const { env_size, texel_angle, ambient_lod } = environmentUniforms(texture);
   scene.car.set({ env_tex: texture, uniforms: { env_size, texel_angle, ambient_lod } });
-  scene.present.set({ env_tex: texture });
+  scene.present.set({ env_tex: texture, detail_tex: scene.white });
   scene.environment = { texture, scale, settings };
+  scene.detail = scene.white;
+}
+
+/**
+ * Gives the backdrop the fine detail of the photograph on the scene, a texture made by
+ * `createDetailTexture`, or takes it off when `detail` is undefined. It only rebinds:
+ * nothing is destroyed, so a texture that is replaced must be destroyed by its owner
+ * after this returns.
+ */
+export function setBackdropDetail(scene: Scene, detail: Texture | undefined): void {
+  const texture = detail ?? scene.white;
+  scene.present.set({ detail_tex: texture });
+  scene.detail = texture;
+}
+
+/** Sets the backdrop's blur far from the car, in radians, for every later frame. */
+export function setBackdropBlur(scene: Scene, radians: number): void {
+  scene.backdropBlur = radians;
 }
 
 /**
@@ -567,6 +710,7 @@ export function render(currentFrame: Frame, scene: Scene, output: Target, view: 
   setCarView(scene, carViewOf(view), scene.hdr.size, "lit", SEAMS.min_pixels);
   const { texture, scale, settings } = scene.environment;
   const { env_size, texel_angle } = environmentUniforms(texture);
+  const [detailWidth, detailHeight] = scene.detail.size as readonly [number, number];
   scene.present.set({
     camera: {
       position: view.position,
@@ -585,7 +729,9 @@ export function render(currentFrame: Frame, scene: Scene, output: Target, view: 
       env_size,
       capture_height: settings.captureHeight,
       ground_radius: settings.groundRadius,
-      backdrop_cone: BACKDROP_CONE,
+      backdrop_blur: scene.backdropBlur,
+      detail_texel_angle: (2 * Math.PI) / detailWidth,
+      detail_size: [detailWidth, detailHeight],
     },
   });
 
@@ -621,6 +767,7 @@ export function destroyScene(scene: Scene): void {
     () => scene.emptyFilm.destroy(),
     () => destroyOwned(scene.hdr),
     () => scene.neutral.destroy(),
+    () => scene.white.destroy(),
   ]);
 }
 
