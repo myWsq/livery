@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 5200 2400" width="5200mm" height="2400mm">
+  <!-- Fault line, TOP. 1 user unit = 1 mm.
+       u (to the right) = 2600 - 1000 * x, v (down) = 1200 - 1000 * z, car frame in metres.
+       Drawn for the Porsche 911 (992). Satin graphite on the silver paint, one signal-orange cut. -->
+
+  <!-- Drawing aid only: the workshop removes this group before the artboard reaches the car. -->
+  <g id="guide">
+    <image xlink:href="../_guides/top.png" x="0" y="0" width="5200" height="2400" />
+  </g>
+
+  <!-- The offset line over bonnet, roof and engine lid, on the car's left of centre. -->
+  <rect x="0" y="1510" width="5200" height="90" fill="#2b2e33" />
+  <rect x="0" y="1483" width="5200" height="12" fill="#ff5a1f" />
+</svg>

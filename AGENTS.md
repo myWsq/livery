@@ -39,7 +39,9 @@ tool; do not generalize for other users or other cars unless asked.
     URL fragment names the one on screen. All of them stay resident on the GPU, so
     each design costs about 210 MB of texture memory. `calibration` is a millimetre
     grid with direction arrows and markers; `stripes` is an example to switch to,
-    not a design direction. `designs/_guides/<view>.png` are generated drawings of
+    not a design direction. `fault-line` is the first real design, drawn for the 911:
+    direction A (a graphite band broken and lifted by an orange cut) with the small
+    labels of direction C. `designs/_guides/<view>.png` are generated drawings of
     the car model, shared by all designs; never edit them by hand.
   - **The `id="guide"` rule.** Each artboard starts with a group `id="guide"` holding
     one `<image>` that links `../_guides/<view>.png`, as a drawing aid. The element

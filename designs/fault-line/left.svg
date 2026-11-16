@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 5200 1800" width="5200mm" height="1800mm">
+  <!-- Fault line, LEFT side. 1 user unit = 1 mm.
+       u (to the right) = 2600 - 1000 * x, v (down) = 1600 - 1000 * y, car frame in metres.
+       Drawn for the Porsche 911 (992). Satin graphite on the silver paint, one signal-orange cut. -->
+
+  <!-- Drawing aid only: the workshop removes this group before the artboard reaches the car. -->
+  <g id="guide">
+    <image xlink:href="../_guides/left.png" x="0" y="0" width="5200" height="1800" />
+  </g>
+
+  <!-- The band: rises from behind the front wheel toward the rear shoulder, widening. -->
+  <polygon points="1746,1294 3361,911 3284,1076 1697,1400" fill="#2b2e33" />
+
+  <!-- The fault: past the door the band resumes 120 mm higher, clearing the rear wheel arch. -->
+  <polygon points="3487,761 4414,542 4318,746 3408,931" fill="#2b2e33" />
+
+  <!-- The cut that breaks it. -->
+  <polygon points="3451,754 3471,754 3308,1104 3288,1104" fill="#ff5a1f" />
+
+  <!-- Labels: tyre sizes over the arches, and a unit tag on the door. -->
+  <g font-family="Helvetica, Arial, sans-serif" font-size="30" font-weight="bold" letter-spacing="2" fill="#2b2e33">
+    <text x="1327" y="880" text-anchor="middle">245/35 ZR20</text>
+    <text x="4430" y="1300" text-anchor="middle">305/30 ZR21</text>
+  </g>
+  <rect x="2290" y="1350" width="440" height="64" fill="#2b2e33" />
+  <rect x="2290" y="1350" width="64" height="64" fill="#ff5a1f" />
+  <g font-family="Helvetica, Arial, sans-serif" font-size="34" font-weight="bold" letter-spacing="4" fill="#e8eaed">
+    <text x="2542" y="1394" text-anchor="middle">992 · C4S · 01</text>
+  </g>
+</svg>
