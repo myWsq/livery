@@ -8,6 +8,5 @@ import ground from "./ground.wgsl";
 import present from "./present.wgsl";
 import type { SceneShaders } from "./scene.ts";
 import seams from "./seams.wgsl";
-import sky from "./sky.wgsl";
 
-export const sceneShaders: SceneShaders = { car, seams, ground, present, sky, blur };
+export const sceneShaders: SceneShaders = { car, seams, ground, present, blur };

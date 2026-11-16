@@ -21,25 +21,26 @@ import {
   type Rgb,
   type SurfaceClass,
 } from "./car/index.ts";
+import { ENVIRONMENT_SIZE, type EnvironmentSettings } from "./environments.ts";
 import { frameUniforms, VIEWS, type View } from "./frames.ts";
+import { halfFloat, type HdrImage } from "./hdr.ts";
 
 const HDR_FORMAT: GPUTextureFormat = "rgba16float";
-const ENV_SIZE: readonly [number, number] = [2048, 1024];
+/** Mip levels of a photograph's environment texture: the photograph, then 7 blurs. */
 const ENV_LEVELS = 8;
-const TEXEL_ANGLE = (2 * Math.PI) / ENV_SIZE[0];
 
-const SKY = {
-  sun_direction: [-0.724, 0.09, -0.684],
-  sun_angular_size: 0.018,
-  sun_color: [1.0, 0.88, 0.72],
-  sun_intensity: 26,
-  zenith_color: [0.05, 0.15, 0.44],
-  cloud_coverage: 0.56,
-  horizon_color: [0.36, 0.48, 0.74],
-  cloud_scale: 0.75,
-  ground_color: [0.05, 0.05, 0.056],
-  ground_scale: 4.6,
+/**
+ * The environment a scene starts with, and keeps where no photograph is put on: a
+ * uniform mid grey, small because every texel is the same.
+ */
+const NEUTRAL = {
+  size: [4, 2],
+  radiance: 0.5,
+  settings: { exposure: 1, heading: 0, captureHeight: 1.5, groundRadius: 30 },
 } as const;
+
+/** The least blur of the backdrop, in radians: the photograph behind the car stays soft. */
+const BACKDROP_CONE = 0.012;
 
 /** Base colour of a part that brings no tint of its own, linear RGB. */
 const DEFAULT_TINT: Record<SurfaceClass, Rgb> = {
@@ -77,8 +78,14 @@ export interface SceneShaders {
   readonly seams: ShaderSource;
   readonly ground: ShaderSource;
   readonly present: ShaderSource;
-  readonly sky: ShaderSource;
   readonly blur: ShaderSource;
+}
+
+/** What lights the scene: an environment texture and how it is fitted to the car. */
+export interface SceneEnvironment {
+  /** Equirectangular, `rgba16float`, each mip level a blur of the one above. */
+  readonly texture: Texture;
+  readonly settings: EnvironmentSettings;
 }
 
 /** What the car draws need to know about a view, perspective or orthographic. */
@@ -113,7 +120,10 @@ export async function createScene(
       minFilter: "linear",
       magFilter: "linear",
     });
-    const env = own(owned, await bakeEnvironment(gpu, envSampler, shaders));
+    // Until an environment is put on, the car stands under the neutral one. The scene
+    // owns only this one; the textures it is given belong to whoever made them.
+    const neutral = own(owned, createNeutralEnvironment(gpu));
+    const environment: SceneEnvironment = { texture: neutral, settings: NEUTRAL.settings };
     const bounds = modelBounds(model);
 
     const carGeometry = own(owned, createCarGeometry(gpu, model));
@@ -121,12 +131,11 @@ export async function createScene(
     car.set({
       uniforms: {
         ...NO_VIEW,
-        env_size: ENV_SIZE,
-        texel_angle: TEXEL_ANGLE,
-        ambient_lod: ENV_LEVELS - 2,
+        ...environmentUniforms(neutral),
+        env_turn: 0,
         output: CAR_OUTPUT.lit,
       },
-      env_tex: env,
+      env_tex: neutral,
       env_samp: envSampler,
       artboards: { frames: frameUniforms() },
       film_samp: sampler(gpu, {
@@ -181,19 +190,27 @@ export async function createScene(
 
     const present = effect(gpu, shaders.present);
     present.set({
-      env_tex: env,
+      env_tex: neutral,
       env_samp: envSampler,
       scene_tex: hdr,
       scene_samp: sceneSampler,
     });
+    // Kept for every photograph made into an environment texture for this scene.
+    const blur = effect(gpu, shaders.blur);
     await compileAll([
       () => car.compile(hdr),
       () => seams.compile(hdr),
       () => ground.compile(hdr),
       () => present.compile({ colors: [output.format] }),
+      () => blur.compile({ colors: [HDR_FORMAT] }),
     ]);
     return {
-      env,
+      environment,
+      /** The scene's own turn of the environment in radians, added to its heading. */
+      turn: 0,
+      neutral,
+      envSampler,
+      blur,
       hdr,
       bounds,
       geometries: [carGeometry, seamGeometry, groundGeometry],
@@ -305,11 +322,19 @@ function createSeamGeometry(gpu: Gpu, model: CarModel) {
   });
 }
 
-async function bakeEnvironment(
-  gpu: Gpu,
-  samplerState: GPUSampler,
-  shaders: SceneShaders,
-): Promise<Texture> {
+/**
+ * Turns a decoded photograph into an environment texture: level 0 is the photograph,
+ * and each further level is the one above blurred by the two passes of `blur.wgsl`.
+ * The texture belongs to the caller, who puts it on with `setEnvironment` and
+ * destroys it once no scene shows it.
+ */
+export function createEnvironmentTexture(gpu: Gpu, scene: Scene, image: HdrImage): Texture {
+  const [width, height] = ENVIRONMENT_SIZE;
+  if (image.width !== width || image.height !== height) {
+    throw new Error(
+      `an environment photograph must be ${width} × ${height} pixels, not ${image.width} × ${image.height}`,
+    );
+  }
   const owned = new Set<unknown>();
   const makeTarget = (size: readonly [number, number]) =>
     own(owned, target(gpu, { size, format: HDR_FORMAT }));
@@ -319,24 +344,22 @@ async function bakeEnvironment(
       owned,
       gpu.device.createTexture({
         kind: "2d",
-        size: [...ENV_SIZE],
+        size: [width, height],
         format: HDR_FORMAT,
         mipLevelCount: ENV_LEVELS,
         usage: ["texture_binding", "copy_dst"],
       }),
     );
-    const sky = effect(gpu, shaders.sky);
-    sky.set({ sky: SKY });
-    const blur = effect(gpu, shaders.blur);
+    writeLevel0(gpu, env, image.pixels);
     const blurPass = (
-      source: Target,
+      source: Target | Texture,
       output: Target,
       direction: readonly [number, number],
       equirectCompensation: number,
     ) => {
-      blur.set({
+      scene.blur.set({
         src: source,
-        src_samp: samplerState,
+        src_samp: scene.envSampler,
         blur: {
           texel: [1 / output.size[0], 1 / output.size[1]],
           direction,
@@ -345,31 +368,104 @@ async function bakeEnvironment(
         },
       });
       frame(gpu, (currentFrame) =>
-        currentFrame.pass({ target: output }, (pass) => pass.draw(blur)),
+        currentFrame.pass({ target: output }, (pass) => pass.draw(scene.blur)),
       );
     };
-    let source = makeTarget(ENV_SIZE);
-
-    await compileAll([() => sky.compile(source), () => blur.compile(source)]);
-    frame(gpu, (currentFrame) => currentFrame.pass({ target: source }, (pass) => pass.draw(sky)));
-    copyIntoLevel(gpu, source, env, 0);
+    // Level 1 is blurred from the photograph itself; the blur samples only level 0.
+    let source: Target | Texture = env;
+    const releaseSource = () => {
+      if (source !== env) release(owned, source);
+    };
 
     for (let level = 1; level < ENV_LEVELS; level++) {
-      const size: [number, number] = [ENV_SIZE[0] >> level, ENV_SIZE[1] >> level];
+      const size: [number, number] = [width >> level, height >> level];
       const horizontal = makeTarget(size);
       const vertical = makeTarget(size);
       blurPass(source, horizontal, [1, 0], 1);
       blurPass(horizontal, vertical, [0, 1], 0);
       copyIntoLevel(gpu, vertical, env, level);
-      runCleanups([() => release(owned, horizontal), () => release(owned, source)]);
+      runCleanups([() => release(owned, horizontal), releaseSource]);
       source = vertical;
     }
-    release(owned, source);
+    releaseSource();
     owned.delete(env);
     return env;
   } catch (error) {
     runCleanups(cleanupOwned(owned), { error });
   }
+}
+
+/** The neutral environment: one level of uniform grey, as many texels as `NEUTRAL` says. */
+function createNeutralEnvironment(gpu: Gpu): Texture {
+  const [width, height] = NEUTRAL.size;
+  const env = gpu.device.createTexture({
+    kind: "2d",
+    size: [width, height],
+    format: HDR_FORMAT,
+    usage: ["texture_binding", "copy_dst"],
+  });
+  try {
+    const grey = halfFloat(NEUTRAL.radiance);
+    const pixels = new Uint16Array(width * height * 4);
+    for (let i = 0; i < pixels.length; i += 4) pixels.set([grey, grey, grey, halfFloat(1)], i);
+    writeLevel0(gpu, env, pixels);
+    return env;
+  } catch (error) {
+    runCleanups([() => env.destroy()], { error });
+  }
+}
+
+/** Writes RGBA half floats, rows from the top, into level 0 of an `rgba16float` texture. */
+function writeLevel0(gpu: Gpu, env: Texture, pixels: Uint16Array<ArrayBuffer>): void {
+  const [width, height] = env.size as readonly [number, number];
+  gpu.gpu.queue.writeTexture(
+    { texture: env.gpu, mipLevel: 0 },
+    pixels,
+    { bytesPerRow: width * 8, rowsPerImage: height },
+    [width, height, 1],
+  );
+}
+
+/** What the shaders need to know about an environment texture to sample it. */
+function environmentUniforms(env: Texture) {
+  const [width, height] = env.size as readonly [number, number];
+  return {
+    env_size: [width, height],
+    texel_angle: (2 * Math.PI) / width,
+    // The level blurred enough to stand in for irradiance: the second-smallest, or
+    // the only one.
+    ambient_lod: Math.max(0, env.mipLevelCount - 2),
+  };
+}
+
+/**
+ * Lights the scene with an environment texture, fitted to the car by `settings`. It
+ * only rebinds and stores: nothing is baked or destroyed, so it is cheap to call at
+ * any time, and the texture it replaces still belongs to whoever made it.
+ */
+export function setEnvironment(
+  scene: Scene,
+  texture: Texture,
+  settings: EnvironmentSettings,
+): void {
+  const { env_size, texel_angle, ambient_lod } = environmentUniforms(texture);
+  scene.car.set({ env_tex: texture, uniforms: { env_size, texel_angle, ambient_lod } });
+  scene.present.set({ env_tex: texture });
+  scene.environment = { texture, settings };
+}
+
+/**
+ * Turns the environment about +Y by `radians`, on top of its own heading: what the
+ * photograph shows at azimuth a is seen at azimuth a + heading + radians. The turn
+ * belongs to the scene, so it stays when the environment changes.
+ */
+export function setEnvironmentTurn(scene: Scene, radians: number): void {
+  scene.turn = radians;
+}
+
+/** The turn the shaders apply to every environment look-up, in radians. */
+function environmentTurn(scene: Scene): number {
+  return (scene.environment.settings.heading * Math.PI) / 180 + scene.turn;
 }
 
 function copyIntoLevel(gpu: Gpu, source: Target, env: Texture, level: number): void {
@@ -400,7 +496,12 @@ function setCarView(
   seamPixels: number,
 ): void {
   scene.car.set({
-    uniforms: { view_projection: view.viewProjection, eye: view.eye, output: CAR_OUTPUT[output] },
+    uniforms: {
+      view_projection: view.viewProjection,
+      eye: view.eye,
+      env_turn: environmentTurn(scene),
+      output: CAR_OUTPUT[output],
+    },
   });
   scene.seams.set({
     uniforms: {
@@ -441,9 +542,14 @@ export function renderCar(
   });
 }
 
-/** One frame of the workshop: the lit car over the sky, tone-mapped into `output`. */
+/**
+ * One frame of the workshop: the lit car standing on the environment's ground, with
+ * the rest of the environment behind it, tone-mapped into `output`.
+ */
 export function render(currentFrame: Frame, scene: Scene, output: Target, view: CameraView): void {
   setCarView(scene, carViewOf(view), scene.hdr.size, "lit", SEAMS.min_pixels);
+  const { texture, settings } = scene.environment;
+  const { env_size, texel_angle } = environmentUniforms(texture);
   scene.present.set({
     camera: {
       position: view.position,
@@ -451,11 +557,15 @@ export function render(currentFrame: Frame, scene: Scene, output: Target, view: 
       forward: view.forward,
       aspect: view.aspect,
       right: view.right,
-      exposure: 0.9,
+      exposure: settings.exposure,
       up: view.up,
       background_intensity: 1,
-      texel_angle: TEXEL_ANGLE,
-      env_size: ENV_SIZE,
+      texel_angle,
+      env_turn: environmentTurn(scene),
+      env_size,
+      capture_height: settings.captureHeight,
+      ground_radius: settings.groundRadius,
+      backdrop_cone: BACKDROP_CONE,
     },
   });
 
@@ -490,7 +600,7 @@ export function destroyScene(scene: Scene): void {
     ...scene.geometries.map((owned) => () => owned.destroy()),
     () => scene.emptyFilm.destroy(),
     () => destroyOwned(scene.hdr),
-    () => scene.env.destroy(),
+    () => scene.neutral.destroy(),
   ]);
 }
 

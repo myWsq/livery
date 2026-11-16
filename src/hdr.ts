@@ -9,7 +9,7 @@ export interface HdrImage {
   readonly width: number;
   readonly height: number;
   /** RGBA half floats as their 16-bit patterns, rows from the top of the image down. */
-  readonly pixels: Uint16Array;
+  readonly pixels: Uint16Array<ArrayBuffer>;
 }
 
 /** The largest finite half float; brighter values are clamped to it. */

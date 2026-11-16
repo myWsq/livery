@@ -11,6 +11,16 @@ export fn direction_from_equirect(uv: vec2f) -> vec3f {
   return vec3f(sin(theta) * cos(phi), cos(theta), sin(theta) * sin(phi));
 }
 
+// The direction to look up in the environment for a car-frame direction when the
+// environment is turned by `turn` radians about +Y: what the photograph shows at
+// azimuth a (from +X toward +Z) is seen at azimuth a + turn. A rotation keeps lengths,
+// so a look-up's footprint, and with it `env_lod`, does not change.
+export fn turned(direction: vec3f, turn: f32) -> vec3f {
+  let c = cos(turn);
+  let s = sin(turn);
+  return vec3f(direction.x * c + direction.z * s, direction.y, direction.z * c - direction.x * s);
+}
+
 export fn env_lod(cone: f32, ddx: vec3f, ddy: vec3f, texel_angle: f32) -> f32 {
   let footprint = max(length(ddx), length(ddy));
   return max(log2(max(cone, footprint) / texel_angle), 0.0);

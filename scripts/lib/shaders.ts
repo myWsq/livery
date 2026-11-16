@@ -13,8 +13,8 @@ async function load(name: string): Promise<ShaderSource> {
 }
 
 export async function loadSceneShaders(): Promise<SceneShaders> {
-  const [car, seams, ground, present, sky, blur] = await Promise.all(
-    ["car", "seams", "ground", "present", "sky", "blur"].map(load),
+  const [car, seams, ground, present, blur] = await Promise.all(
+    ["car", "seams", "ground", "present", "blur"].map(load),
   );
-  return { car, seams, ground, present, sky, blur };
+  return { car, seams, ground, present, blur };
 }

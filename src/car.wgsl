@@ -1,4 +1,4 @@
-import { env_lod, sample_env } from "./env-common.wgsl";
+import { env_lod, sample_env, turned } from "./env-common.wgsl";
 
 // Surface classes, in the order of SURFACE_CLASSES in car/model.ts.
 const CLASS_PAINT: i32 = 0;
@@ -30,6 +30,9 @@ struct Uniforms {
   ambient_lod: f32,
   // One of the OUTPUT_* constants.
   output: i32,
+  // Turn of the environment about +Y in radians, applied to every look-up (see
+  // `turned` in env-common.wgsl).
+  env_turn: f32,
 };
 
 // One artboard frame, from frames.ts: `u` and `v` map a car-frame point (x, y, z, 1)
@@ -149,7 +152,7 @@ fn film_at(position: vec3f, normal: vec3f, ddx: vec3f, ddy: vec3f) -> Film {
 }
 
 // ---------------------------------------------------------------------------
-// Materials, lit by the baked sky.
+// Materials, lit by the environment photograph, taken as infinitely far away.
 // ---------------------------------------------------------------------------
 
 // Everything the materials need to know about the shading point.
@@ -164,11 +167,11 @@ struct Surface {
 // Environment light arriving around the reflection, blurred over a cone of `cone` radians.
 fn glossy(surface: Surface, cone: f32) -> vec3f {
   let lod = env_lod(cone, surface.ddx, surface.ddy, uniforms.texel_angle);
-  return sample_env(env_tex, env_samp, surface.reflected, lod, uniforms.env_size);
+  return sample_env(env_tex, env_samp, turned(surface.reflected, uniforms.env_turn), lod, uniforms.env_size);
 }
 
 fn ambient(normal: vec3f) -> vec3f {
-  return sample_env(env_tex, env_samp, normal, uniforms.ambient_lod, uniforms.env_size);
+  return sample_env(env_tex, env_samp, turned(normal, uniforms.env_turn), uniforms.ambient_lod, uniforms.env_size);
 }
 
 fn schlick(f0: vec3f, facing: f32) -> vec3f {
