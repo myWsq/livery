@@ -11,6 +11,7 @@
     "lint": "oxlint",
     "render": "node scripts/render.ts",
     "guides": "node scripts/guides.ts",
+    "sheet": "node scripts/sheet.ts",
     "check:projection": "node scripts/check-projection.ts",
     "import-car": "node scripts/import-car.ts"
   },

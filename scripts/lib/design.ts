@@ -41,8 +41,9 @@ export function listDesigns(): string[] {
 
 /**
  * Rasterises a design and puts it on the scene. Resolves once every artboard has
- * settled, with the raster of each view that has film and the artboards that failed,
- * by view. The film stays on the car for as long as the GPU lives.
+ * settled, with the raster of each view that has film, the artboards that failed, by
+ * view, and `release`, which dresses the car bare and destroys the design's film. Not
+ * released, the film stays on the car for as long as the GPU lives.
  */
 export async function applyDesign(gpu: Gpu, scene: Scene, design: string) {
   const rasters = new Map<View, ArtboardRaster>();
@@ -55,5 +56,5 @@ export async function applyDesign(gpu: Gpu, scene: Scene, design: string) {
   wardrobe.wear(design);
   wardrobe.setDesigns(new Map([[design, readDesign(design)]]));
   await wardrobe.settled();
-  return { rasters, problems };
+  return { rasters, problems, release: () => wardrobe.dispose() };
 }
