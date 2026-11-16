@@ -1,4 +1,4 @@
-import { createRenderer } from "./renderer";
+import { createRenderer } from "./renderer.ts";
 
 const canvas = document.querySelector("canvas")!;
 const errorBox = document.querySelector<HTMLDivElement>("#error")!;

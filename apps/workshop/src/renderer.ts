@@ -1,6 +1,9 @@
-import { cameraView } from "./camera";
-import { aspectOf, createScene, render, replaceHdr, runCleanups } from "./scene";
-import { clock, frameLoop, surface, type Gpu } from "vgpu";
+import { frameLoop, surface, type Gpu } from "vgpu";
+
+import { cameraView, clampOrbit, initialOrbit } from "./camera.ts";
+import { loadCarModel } from "./car/index.ts";
+import { aspectOf, createScene, render, replaceHdr, runCleanups } from "./scene.ts";
+import { sceneShaders } from "./shaders.ts";
 
 interface RendererOptions {
   readonly canvas: HTMLCanvasElement;
@@ -52,7 +55,7 @@ export function createRenderer({ canvas }: RendererOptions) {
 
     gpu = nextGpu;
     const output = surface(nextGpu, canvas, { dpr: [1, 2] });
-    const scene = await createScene(nextGpu, output);
+    const scene = await createScene(nextGpu, output, sceneShaders, loadCarModel());
     if (disposed) return;
 
     const orbit = installOrbitInput(canvas, guard);
@@ -65,17 +68,14 @@ export function createRenderer({ canvas }: RendererOptions) {
         }
       });
     });
-    const time = clock(nextGpu);
     loop = frameLoop(nextGpu, (currentFrame) => {
       guard(() => {
         if (disposed) return;
-        orbit.advance(time.deltaTime);
         render(
           currentFrame,
           scene,
           output,
-          cameraView(orbit.yaw, orbit.pitch, aspectOf(output)),
-          time.time,
+          cameraView(orbit.state, aspectOf(output), scene.bounds),
         );
       });
     });
@@ -89,12 +89,15 @@ export function createRenderer({ canvas }: RendererOptions) {
   return { ready, dispose };
 }
 
+/**
+ * Drag to orbit, wheel to zoom. The view only moves in response to input: there is
+ * no idle rotation.
+ */
 export function installOrbitInput(
   canvas: HTMLCanvasElement,
   guard: (action: () => void) => void = (action) => action(),
 ) {
-  let yaw = 0.6;
-  let pitch = 0.12;
+  const state = initialOrbit();
   let activePointer: number | undefined;
   let lastX = 0;
   let lastY = 0;
@@ -112,8 +115,9 @@ export function installOrbitInput(
   const move = (event: PointerEvent) =>
     guard(() => {
       if (event.pointerId !== activePointer) return;
-      yaw -= (event.clientX - lastX) * 0.006;
-      pitch = Math.max(-1.2, Math.min(1.2, pitch + (event.clientY - lastY) * 0.006));
+      state.yaw -= (event.clientX - lastX) * 0.006;
+      state.pitch += (event.clientY - lastY) * 0.006;
+      clampOrbit(state);
       lastX = event.clientX;
       lastY = event.clientY;
     });
@@ -123,21 +127,26 @@ export function installOrbitInput(
       releaseCapture(event.pointerId);
       activePointer = undefined;
     });
+  const wheel = (event: WheelEvent) =>
+    guard(() => {
+      event.preventDefault();
+      // Lines and pages scroll in coarser units than pixels.
+      const unit = event.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? 1 : 32;
+      state.distance *= Math.exp(event.deltaY * unit * 0.0012);
+      clampOrbit(state);
+    });
   const releaseCapture = (pointer: number) => {
     if (canvas.hasPointerCapture?.(pointer)) canvas.releasePointerCapture(pointer);
   };
 
-  const listeners = [
-    ["pointerdown", down],
-    ["pointermove", move],
-    ["pointerup", end],
-    ["pointercancel", end],
-  ] as const;
   const controller = new AbortController();
   try {
-    for (const [type, listener] of listeners) {
-      canvas.addEventListener(type, listener, { signal: controller.signal });
-    }
+    const options = { signal: controller.signal };
+    canvas.addEventListener("pointerdown", down, options);
+    canvas.addEventListener("pointermove", move, options);
+    canvas.addEventListener("pointerup", end, options);
+    canvas.addEventListener("pointercancel", end, options);
+    canvas.addEventListener("wheel", wheel, { ...options, passive: false });
   } catch (error) {
     runCleanups(
       [() => controller.abort(), () => (canvas.style.touchAction = previousTouchAction)],
@@ -146,15 +155,8 @@ export function installOrbitInput(
   }
 
   return {
-    get yaw() {
-      return yaw;
-    },
-    get pitch() {
-      return pitch;
-    },
-    advance(deltaTime: number) {
-      if (activePointer === undefined) yaw += deltaTime * 0.09;
-    },
+    /** The live orbit state: the same object for as long as the input is installed. */
+    state,
     dispose() {
       runCleanups([
         () => controller.abort(),
