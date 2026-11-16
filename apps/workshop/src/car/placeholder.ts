@@ -157,15 +157,17 @@ function waistAt(x: number): number {
 
 /** The axle whose wheel arch covers x, if any. */
 function archAxle(x: number): number | undefined {
-  const reach = Math.sqrt(ARCH_RADIUS ** 2 - (WHEEL_RADIUS - SILL_HEIGHT) ** 2);
-  return AXLES.find((axle) => Math.abs(x - axle) < reach);
+  return AXLES.find((axle) => Math.abs(x - axle) <= ARCH_RADIUS + 1e-9);
 }
 
-/** Height of the wheel-arch opening at x, or -Infinity away from the arches. */
+/**
+ * Height of the wheel-arch opening at x, or -Infinity away from the arches. The
+ * opening is a half circle above the wheel centre, with straight sides down to the sill.
+ */
 function archAt(x: number): number {
   const axle = archAxle(x);
   if (axle === undefined) return -Infinity;
-  return WHEEL_RADIUS + Math.sqrt(ARCH_RADIUS ** 2 - (x - axle) ** 2);
+  return WHEEL_RADIUS + Math.sqrt(Math.max(0, ARCH_RADIUS ** 2 - (x - axle) ** 2));
 }
 
 /** A slight flare of the body side around each wheel arch. */
@@ -276,15 +278,12 @@ function bodyStations(): number[] {
   stations[count] = HALF_LENGTH;
 
   const arch: number[] = [];
-  const start = Math.asin((SILL_HEIGHT - WHEEL_RADIUS) / ARCH_RADIUS);
   const steps = 40;
   for (const axle of AXLES) {
     for (let k = 0; k <= steps; k++) {
-      const angle = start + ((Math.PI - 2 * start) * k) / steps;
-      arch.push(axle + ARCH_RADIUS * Math.cos(angle));
+      arch.push(axle + ARCH_RADIUS * Math.cos((Math.PI * k) / steps));
     }
-    const reach = ARCH_RADIUS * Math.cos(start);
-    arch.push(axle - reach - 0.003, axle + reach + 0.003);
+    arch.push(axle - ARCH_RADIUS - 0.003, axle + ARCH_RADIUS + 0.003);
   }
   const kept = stations.filter((x) => arch.every((a) => Math.abs(a - x) > 0.012));
   return [...kept, ...arch].sort((a, b) => a - b);
@@ -349,25 +348,49 @@ function buildBody(): Triangle[] {
     [REAR_AXLE + 0.3, 0.225],
   ];
 
-  for (const outline of [headlight, mirrored(headlight)]) {
+  // A lamp is where an outline seen from the front meets one seen from the side, so
+  // that it wraps the corner of the car and ends on a clean line.
+  const lamp = (
+    front: readonly Vec2[],
+    side: readonly Vec2[],
+    near: (x: number) => boolean,
+    part: PartSpec,
+  ) => {
+    const wrapped: PartSpec = { name: "lamp-wrap", surface: "paint" };
     skin = reclass(skin, {
-      select: (t) => centroidX(t) > 1.5,
+      select: (t) => t.part === PAINT && near(centroidX(t)),
       project: frontView,
-      outline,
-      part: HEADLIGHT,
+      outline: front,
+      part: wrapped,
     });
-  }
+    skin = reclass(skin, {
+      select: (t) => t.part === wrapped,
+      project: sideView,
+      outline: side,
+      part,
+    });
+    skin = skin.map((t) => (t.part === wrapped ? { v: t.v, part: PAINT } : t));
+  };
+  const noseEnd: Vec2[] = [
+    [1.74, 0.3],
+    [2.3, 0.3],
+    [2.3, 0.8],
+    [1.8, 0.8],
+  ];
+  const tailEnd: Vec2[] = [
+    [-2.3, 0.6],
+    [-1.92, 0.6],
+    [-1.92, 0.9],
+    [-2.3, 0.9],
+  ];
+  lamp(headlight, noseEnd, (x) => x > 1.6, HEADLIGHT);
+  lamp(mirrored(headlight), noseEnd, (x) => x > 1.6, HEADLIGHT);
+  lamp(tailLight, tailEnd, (x) => x < -1.8, TAIL_LIGHT);
   skin = reclass(skin, {
     select: (t) => centroidX(t) > 1.7,
     project: frontView,
     outline: grille,
     part: TRIM,
-  });
-  skin = reclass(skin, {
-    select: (t) => centroidX(t) < -1.86,
-    project: frontView,
-    outline: tailLight,
-    part: TAIL_LIGHT,
   });
   skin = reclass(skin, {
     select: (t) => centroidX(t) < -1.7,
@@ -407,20 +430,25 @@ function buildBody(): Triangle[] {
   for (const axle of AXLES) {
     const inner = halfWidthAt(axle) - WELL_DEPTH;
     const columns = stations.map((x, i) => ({ x, i })).filter(({ x }) => archAxle(x) === axle);
+    // The lip of the opening: up one straight side, over the arch, down the other.
+    const first = columns[0];
+    const last = columns[columns.length - 1];
+    const lip: Vec3[] = [
+      [first.x, SILL_HEIGHT, edge(first.i)[0]],
+      ...columns.map(({ x, i }): Vec3 => [x, edge(i)[1], edge(i)[0]]),
+      [last.x, SILL_HEIGHT, edge(last.i)[0]],
+    ];
     wells.push(
       ...gridSurface({
-        columns: columns.length,
+        columns: lip.length,
         rows: 2,
-        at: (c, j) => {
-          const { x, i } = columns[c];
-          return { p: [x, edge(i)[1], j === 0 ? edge(i)[0] : inner] };
-        },
+        at: (c, j) => ({ p: j === 0 ? lip[c] : [lip[c][0], lip[c][1], inner] }),
         part: UNDERBODY,
         outward: (p) => [axle - p[0], WHEEL_RADIUS - p[1], 0],
       }),
     );
-    const rim: Vec3[] = columns.map(({ x, i }) => [x, edge(i)[1], inner]);
-    wells.push(...flatFan([[axle, SILL_HEIGHT, inner], ...rim], [0, 0, 1], UNDERBODY));
+    const wall = lip.map((p): Vec3 => [p[0], p[1], inner]);
+    wells.push(...flatFan([[axle, SILL_HEIGHT, inner], ...wall], [0, 0, 1], UNDERBODY));
   }
   triangles.push(...wells, ...mirrorZ(wells));
   return triangles;

@@ -1,8 +1,11 @@
 import { frameLoop, surface, type Gpu } from "vgpu";
 
+import { createArtboardLoader } from "./artboards.ts";
 import { cameraView, clampOrbit, initialOrbit } from "./camera.ts";
 import { loadCarModel } from "./car/index.ts";
-import { aspectOf, createScene, render, replaceHdr, runCleanups } from "./scene.ts";
+import { DESIGN, designSources } from "./design-sources.ts";
+import { rasterizeArtboard } from "./rasterize.ts";
+import { aspectOf, createScene, render, replaceHdr, runCleanups, setArtboard } from "./scene.ts";
 import { sceneShaders } from "./shaders.ts";
 
 interface RendererOptions {
@@ -79,6 +82,18 @@ export function createRenderer({ canvas }: RendererOptions) {
         );
       });
     });
+
+    // The car is already on screen; its artboards arrive one by one behind it.
+    const artboards = createArtboardLoader({
+      rasterize: rasterizeArtboard,
+      apply: (view, raster) => {
+        if (!disposed) setArtboard(nextGpu, scene, view, raster);
+      },
+      report: (problems) => {
+        for (const [view, problem] of problems) console.error(`${DESIGN}/${view}.svg: ${problem}`);
+      },
+    });
+    void artboards.update(designSources(DESIGN));
   };
 
   const ready = initialize().catch((error: unknown) => {

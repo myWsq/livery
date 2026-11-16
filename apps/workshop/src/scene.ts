@@ -12,6 +12,11 @@ import {
   type Texture,
 } from "vgpu";
 
+import {
+  createArtboardTexture,
+  createEmptyArtboardTexture,
+  type ArtboardRaster,
+} from "./artboards.ts";
 import type { CameraView } from "./camera.ts";
 import {
   modelBounds,
@@ -20,6 +25,7 @@ import {
   type Rgb,
   type SurfaceClass,
 } from "./car/index.ts";
+import { frameUniforms, VIEWS, type View } from "./frames.ts";
 
 const HDR_FORMAT: GPUTextureFormat = "rgba16float";
 const ENV_SIZE: readonly [number, number] = [2048, 1024];
@@ -56,6 +62,9 @@ const SEAMS = {
 } as const;
 
 const GROUND_SHADOW = { strength: 0.82, softness: 0.7 } as const;
+
+/** What the car shader writes; the values of its OUTPUT_* constants. */
+export const CAR_OUTPUT = { lit: 0, film: 1, surface: 2 } as const;
 
 /** View uniforms before the first frame sets them: every uniform needs a first value. */
 const NO_VIEW = {
@@ -119,10 +128,26 @@ export async function createScene(
         env_size: ENV_SIZE,
         texel_angle: TEXEL_ANGLE,
         ambient_lod: ENV_LEVELS - 2,
+        output: CAR_OUTPUT.lit,
       },
       env_tex: env,
       env_samp: envSampler,
+      artboards: { frames: frameUniforms() },
+      film_samp: sampler(gpu, {
+        minFilter: "linear",
+        magFilter: "linear",
+        mipmapFilter: "linear",
+        addressModeU: "clamp-to-edge",
+        addressModeV: "clamp-to-edge",
+        maxAnisotropy: 8,
+      }),
     });
+    // Every artboard starts empty: the car wears no film until a design is applied.
+    const film = {} as Record<View, Texture>;
+    for (const view of VIEWS) {
+      film[view] = own(owned, createEmptyArtboardTexture(gpu));
+      car.set({ [filmBinding(view)]: film[view] });
+    }
 
     const seamGeometry = own(owned, createSeamGeometry(gpu, model));
     const seams = draw(gpu, { shader: shaders.seams, geometry: seamGeometry });
@@ -177,6 +202,7 @@ export async function createScene(
       hdr,
       bounds,
       geometries: [carGeometry, seamGeometry, groundGeometry],
+      film,
       car,
       seams,
       ground,
@@ -188,6 +214,24 @@ export async function createScene(
 }
 
 export type Scene = Awaited<ReturnType<typeof createScene>>;
+
+/** Name of the shader binding that holds a view's artboard. */
+function filmBinding(view: View): string {
+  return `film_${VIEWS.indexOf(view)}`;
+}
+
+/** Replaces one artboard on the car with a freshly rasterised image. */
+export function setArtboard(gpu: Gpu, scene: Scene, view: View, raster: ArtboardRaster): void {
+  const next = createArtboardTexture(gpu, raster);
+  const previous = scene.film[view];
+  try {
+    scene.car.set({ [filmBinding(view)]: next });
+  } catch (error) {
+    runCleanups([() => next.destroy()], { error });
+  }
+  scene.film[view] = next;
+  previous.destroy();
+}
 
 /** One interleaved vertex buffer for the whole car: position, normal, tint and class. */
 function createCarGeometry(gpu: Gpu, model: CarModel) {
@@ -339,22 +383,58 @@ export function carViewOf(view: CameraView): CarView {
 }
 
 /** Points the car, its seams and its ground shadow at a view of a given pixel size. */
-function setCarView(scene: Scene, view: CarView, size: readonly [number, number]): void {
-  scene.car.set({ uniforms: { view_projection: view.viewProjection, eye: view.eye } });
+function setCarView(
+  scene: Scene,
+  view: CarView,
+  size: readonly [number, number],
+  output: keyof typeof CAR_OUTPUT,
+  seamPixels: number,
+): void {
+  scene.car.set({
+    uniforms: { view_projection: view.viewProjection, eye: view.eye, output: CAR_OUTPUT[output] },
+  });
   scene.seams.set({
     uniforms: {
       view_projection: view.viewProjection,
       eye: view.eye,
       viewport: size,
       pixels_per_metre: (size[1] / 2) * Math.abs(view.projectionScale),
+      min_pixels: seamPixels,
     },
   });
   scene.ground.set({ uniforms: { view_projection: view.viewProjection } });
 }
 
+export interface CarPassOptions {
+  /** What the car shader writes. Defaults to the lit car. */
+  readonly output?: keyof typeof CAR_OUTPUT;
+  /** Draw the panel seams, at least this many pixels wide. Omit to leave them out. */
+  readonly seamPixels?: number;
+}
+
+/**
+ * Draws only the car into a scene target, from any view: the pass behind the guide
+ * images and the projection check. The target holds the raw scene values, not a
+ * tone-mapped image.
+ */
+export function renderCar(
+  currentFrame: Frame,
+  scene: Scene,
+  sceneTarget: Target,
+  view: CarView,
+  options: CarPassOptions = {},
+): void {
+  const seamPixels = options.seamPixels;
+  setCarView(scene, view, sceneTarget.size, options.output ?? "lit", seamPixels ?? 0);
+  currentFrame.pass({ target: sceneTarget, clear: [0, 0, 0, 0] }, (pass) => {
+    pass.draw(scene.car);
+    if (seamPixels !== undefined) pass.draw(scene.seams);
+  });
+}
+
 /** One frame of the workshop: the lit car over the sky, tone-mapped into `output`. */
 export function render(currentFrame: Frame, scene: Scene, output: Target, view: CameraView): void {
-  setCarView(scene, carViewOf(view), scene.hdr.size);
+  setCarView(scene, carViewOf(view), scene.hdr.size, "lit", SEAMS.min_pixels);
   scene.present.set({
     camera: {
       position: view.position,
@@ -399,6 +479,7 @@ export function replaceHdr(gpu: Gpu, scene: Scene, size: readonly [number, numbe
 export function destroyScene(scene: Scene): void {
   runCleanups([
     ...scene.geometries.map((owned) => () => owned.destroy()),
+    ...VIEWS.map((view) => () => scene.film[view].destroy()),
     () => destroyOwned(scene.hdr),
     () => scene.env.destroy(),
   ]);
