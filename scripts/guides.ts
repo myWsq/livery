@@ -2,7 +2,7 @@
  * Renders the guide images: one orthographic drawing of the car per artboard, aligned
  * exactly to the artboard's frame, to draw a design over.
  *
- *   pnpmguides
+ *   pnpm guides
  *
  * Writes designs/_guides/<view>.png. Run it again whenever the car model changes.
  * It reads only the car model contract.
