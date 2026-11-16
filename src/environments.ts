@@ -27,8 +27,17 @@ export interface Environment {
   readonly id: EnvironmentId;
   /** The name shown to the owner. */
   readonly name: string;
-  /** File name under `environments/`. */
+  /**
+   * File name under `environments/` of the HDR that lights the car and sets the
+   * backdrop's brightness.
+   */
   readonly file: string;
+  /**
+   * File name under `environments/` of the tone-mapped JPEG of the same panorama, at
+   * `BACKDROP_SIZE`, aligned to the pixel with `file`: it gives the backdrop its fine
+   * detail.
+   */
+  readonly backdrop: string;
   /** Where the photograph comes from: a Poly Haven asset and its author. */
   readonly source: { readonly asset: string; readonly author: string };
   readonly settings: EnvironmentSettings;
@@ -37,11 +46,18 @@ export interface Environment {
 /** The size every photograph must have: an equirectangular panorama, 2:1. */
 export const ENVIRONMENT_SIZE: readonly [width: number, height: number] = [2048, 1024];
 
+/** The size every detail image must have: four times `ENVIRONMENT_SIZE` each way. */
+export const BACKDROP_SIZE: readonly [width: number, height: number] = [
+  ENVIRONMENT_SIZE[0] * 4,
+  ENVIRONMENT_SIZE[1] * 4,
+];
+
 export const ENVIRONMENTS: readonly Environment[] = [
   {
     id: "day",
     name: "日光",
     file: "day.hdr",
+    backdrop: "day.jpg",
     source: { asset: "wide_street_01", author: "Sergej Majboroda" },
     settings: { exposure: 0.4, heading: 46, captureHeight: 1.5, groundRadius: 30 },
   },
@@ -49,6 +65,7 @@ export const ENVIRONMENTS: readonly Environment[] = [
     id: "overcast",
     name: "阴天",
     file: "overcast.hdr",
+    backdrop: "overcast.jpg",
     source: { asset: "round_platform", author: "Sergej Majboroda" },
     settings: { exposure: 0.9, heading: 0, captureHeight: 1.5, groundRadius: 30 },
   },
@@ -56,6 +73,7 @@ export const ENVIRONMENTS: readonly Environment[] = [
     id: "night",
     name: "夜晚街灯",
     file: "night.hdr",
+    backdrop: "night.jpg",
     source: { asset: "hansaplatz", author: "Greg Zaal" },
     settings: { exposure: 0.45, heading: 0, captureHeight: 1.5, groundRadius: 30 },
   },
@@ -63,6 +81,7 @@ export const ENVIRONMENTS: readonly Environment[] = [
     id: "garage",
     name: "车库",
     file: "garage.hdr",
+    backdrop: "garage.jpg",
     source: { asset: "empty_warehouse_01", author: "Sergej Majboroda" },
     settings: { exposure: 0.7, heading: 0, captureHeight: 1.5, groundRadius: 30 },
   },
