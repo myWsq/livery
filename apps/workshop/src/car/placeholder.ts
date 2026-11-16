@@ -37,6 +37,8 @@ const BODY_SECTION = 4;
 const WAIST = 0.52;
 /** How much the body side tucks in toward the sill, as a fraction of the half width. */
 const TUCK = 0.06;
+/** Radius of the turn-under where the body side rolls into the underside. */
+const TURN_UNDER = 0.04;
 
 // Greenhouse (cabin) extent along the car.
 const CABIN_REAR = -1.72;
@@ -220,10 +222,19 @@ function bodySection(x: number, rows: number): Vec2[] {
     const y = waist + (deck - waist) * Math.pow(Math.max(0, Math.sin(theta)), 2 / BODY_SECTION);
     dense.push([z, y]);
   }
+  // Down the side, then a quarter turn under the car onto the floor.
+  const turn = Math.min(TURN_UNDER, width * 0.3, (waist - floor) * 0.5);
   const lower = 32;
+  const lowest = 1 - turn / Math.max(1e-9, waist - floor);
   for (let k = 1; k <= lower; k++) {
-    const t = k / lower;
+    const t = (lowest * k) / lower;
     dense.push([width * (1 - TUCK * t * t), waist - (waist - floor) * t]);
+  }
+  const side = width * (1 - TUCK * lowest * lowest);
+  const under = 8;
+  for (let k = 1; k <= under; k++) {
+    const angle = (Math.PI / 2) * (k / under);
+    dense.push([side - turn + turn * Math.cos(angle), floor + turn - turn * Math.sin(angle)]);
   }
   for (const point of dense) point[0] += flareAt(x, point[1]);
   dense[0][0] = 0;
