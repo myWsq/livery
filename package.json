@@ -3,18 +3,28 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "typecheck": "turbo run typecheck",
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "render": "node scripts/render.ts",
+    "guides": "node scripts/guides.ts",
+    "check:projection": "node scripts/check-projection.ts"
+  },
+  "dependencies": {
+    "vgpu": "^0.6.0"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/node": "^26.6.6",
+    "@vgpu/wgsl": "^0.6.0",
+    "@webgpu/types": "^0.1.74",
     "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
-    "turbo": "^2.11.11",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
   },
   "packageManager": "pnpm@11.6.0"
 }

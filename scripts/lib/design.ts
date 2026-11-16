@@ -11,7 +11,7 @@ import { createWardrobe, isDesignName } from "../../src/wardrobe.ts";
 import { rasterizeArtboard } from "./rasterize.ts";
 
 /** The repository root, where `designs/` lives. */
-export const REPOSITORY = fileURLToPath(new URL("../../../../", import.meta.url));
+export const REPOSITORY = fileURLToPath(new URL("../../", import.meta.url));
 
 export function readDesign(design: string): DesignSources {
   const sources: DesignSources = {};

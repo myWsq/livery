@@ -1,7 +1,7 @@
 /**
  * Renders the lit car to a PNG without a browser.
  *
- *   pnpm --filter @livery/workshop render [--design name] [--out file.png]
+ *   pnpmrender [--design name] [--out file.png]
  *     [--yaw deg] [--pitch deg] [--distance metres] [--width px] [--height px]
  *
  * Angles are in degrees: yaw 90 looks at the nose, 0 at the car's right side, 180 at

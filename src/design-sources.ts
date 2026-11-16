@@ -7,7 +7,7 @@ import type { DesignSources } from "./artboards.ts";
 import { VIEWS, type View } from "./frames.ts";
 import { isDesignName, type DesignSet } from "./wardrobe.ts";
 
-const files = import.meta.glob<string>("../../../designs/*/*.svg", {
+const files = import.meta.glob<string>("../designs/*/*.svg", {
   query: "?raw",
   import: "default",
   eager: true,

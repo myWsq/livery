@@ -1,6 +1,3 @@
-packages:
-  - "apps/*"
-  - "packages/*"
 allowBuilds:
   "@vgpu/adapter-node": true
   webgpu: true

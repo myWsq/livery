@@ -1,7 +1,7 @@
 /**
  * Proves the livery projection from pixels, for the `calibration` design.
  *
- *   pnpm --filter @livery/workshop check:projection
+ *   pnpmcheck:projection
  *
  * Exits 0 only when every assertion holds, and prints the ones that fail otherwise.
  *
