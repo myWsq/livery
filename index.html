@@ -33,11 +33,18 @@
       #error[hidden] {
         display: none;
       }
-      #artboard-notice {
+      /* The notices stack in the bottom-left corner, so neither covers the other. */
+      #notices {
         position: fixed;
         left: 16px;
         bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
         max-width: min(560px, calc(100vw - 32px));
+      }
+      #artboard-notice,
+      #environment-notice {
         padding: 10px 14px;
         border-left: 3px solid #f0b429;
         border-radius: 4px;
@@ -47,18 +54,21 @@
           13px/1.6 system-ui,
           sans-serif;
       }
-      #artboard-notice[hidden] {
+      #artboard-notice[hidden],
+      #environment-notice[hidden] {
         display: none;
       }
       #artboard-notice p {
         margin: 0 0 4px;
         color: #f0b429;
       }
-      #artboard-notice ul {
+      #artboard-notice ul,
+      #environment-notice ul {
         margin: 0;
         padding-left: 18px;
       }
-      #artboard-notice li {
+      #artboard-notice li,
+      #environment-notice li {
         overflow-wrap: anywhere;
       }
       #artboard-notice code {
@@ -85,7 +95,9 @@
       #design-label[hidden] {
         display: none;
       }
-      #design-label .position {
+      #design-label .position,
+      #design-label .separator,
+      #design-label .environment-position {
         color: #9aa0a8;
         font-variant-numeric: tabular-nums;
       }
@@ -96,11 +108,18 @@
     <div id="error" hidden></div>
     <div id="design-label" role="status" hidden>
       <span class="name"></span><span class="position"></span>
+      <span class="separator" aria-hidden="true">·</span>
+      <span class="environment-name"></span><span class="environment-position"></span>
     </div>
-    <aside id="artboard-notice" role="status" hidden>
-      <p>下列画板无法显示，车身保留它们上一次成功的画面：</p>
-      <ul></ul>
-    </aside>
+    <div id="notices">
+      <aside id="artboard-notice" role="status" hidden>
+        <p>下列画板无法显示，车身保留它们上一次成功的画面：</p>
+        <ul></ul>
+      </aside>
+      <aside id="environment-notice" role="status" hidden>
+        <ul></ul>
+      </aside>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
