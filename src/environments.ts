@@ -49,22 +49,22 @@ export const ENVIRONMENTS: readonly Environment[] = [
     id: "overcast",
     name: "阴天",
     file: "overcast.hdr",
-    source: { asset: "beach_parking", author: "Greg Zaal and Rico Cilliers" },
-    settings: { exposure: 1.2, heading: 0, captureHeight: 1.5, groundRadius: 30 },
+    source: { asset: "round_platform", author: "Sergej Majboroda" },
+    settings: { exposure: 0.9, heading: 0, captureHeight: 1.5, groundRadius: 30 },
   },
   {
     id: "night",
     name: "夜晚街灯",
     file: "night.hdr",
     source: { asset: "hansaplatz", author: "Greg Zaal" },
-    settings: { exposure: 0.7, heading: 0, captureHeight: 1.5, groundRadius: 30 },
+    settings: { exposure: 0.45, heading: 0, captureHeight: 1.5, groundRadius: 30 },
   },
   {
     id: "garage",
     name: "车库",
     file: "garage.hdr",
     source: { asset: "empty_warehouse_01", author: "Sergej Majboroda" },
-    settings: { exposure: 0.8, heading: 0, captureHeight: 1.5, groundRadius: 30 },
+    settings: { exposure: 0.7, heading: 0, captureHeight: 1.5, groundRadius: 30 },
   },
 ];
 

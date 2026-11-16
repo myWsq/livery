@@ -54,7 +54,7 @@ pnpm dev
 四张光线环境照片来自 [Poly Haven](https://polyhaven.com)，以 CC0 发布：
 
 - 日光：[wide_street_01](https://polyhaven.com/a/wide_street_01)，Sergej Majboroda
-- 阴天：[beach_parking](https://polyhaven.com/a/beach_parking)，Greg Zaal and Rico Cilliers
+- 阴天：[round_platform](https://polyhaven.com/a/round_platform)，Sergej Majboroda
 - 夜晚街灯：[hansaplatz](https://polyhaven.com/a/hansaplatz)，Greg Zaal
 - 车库：[empty_warehouse_01](https://polyhaven.com/a/empty_warehouse_01)，Sergej Majboroda
 

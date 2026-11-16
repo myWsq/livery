@@ -60,8 +60,8 @@ if (import.meta.hot) {
   // Saving, creating or deleting a design file re-evaluates this module only, because
   // the `livery:watch-designs` plugin in `vite.config.ts` hands every such change to
   // this module alone. Accepting the update here keeps it from spreading to the
-  // renderer, so the page never reloads: the device, the baked sky and the camera stay
-  // as they are, and only the listeners hear of it.
+  // renderer, so the page never reloads: the device, the loaded environments and the
+  // camera stay as they are, and only the listeners hear of it.
   import.meta.hot.accept((next) => {
     const listeners: Set<Listener> | undefined = import.meta.hot?.data.listeners;
     if (!next || !listeners) return;

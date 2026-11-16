@@ -1,5 +1,5 @@
 // A soft contact shadow on the ground plane, so the car reads as standing on it.
-// It only writes coverage: the present pass darkens the sky's ground with it.
+// It only writes coverage: the present pass darkens the photograph's ground with it.
 
 struct Uniforms {
   view_projection: mat4x4f,

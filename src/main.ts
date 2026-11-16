@@ -68,6 +68,8 @@ createRenderer({
   console.error(error);
   failed = true;
   designLabel.hidden = true;
-  errorBox.textContent = `无法启动渲染：${error instanceof Error ? error.message : String(error)}。工坊需要支持 WebGPU 的浏览器。`;
+  // The hint about the browser only where it has no WebGPU at all.
+  const hint = "gpu" in navigator ? "" : "工坊需要支持 WebGPU 的浏览器。";
+  errorBox.textContent = `无法启动渲染：${error instanceof Error ? error.message : String(error)}。${hint}`;
   errorBox.hidden = false;
 });

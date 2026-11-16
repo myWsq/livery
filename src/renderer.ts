@@ -1,4 +1,4 @@
-import { frameLoop, surface, type Gpu, type Texture } from "vgpu";
+import { frameLoop, surface, type Gpu } from "vgpu";
 
 import { cameraView, clampOrbit, initialOrbit } from "./camera.ts";
 import { loadCarModel } from "./car/index.ts";
@@ -17,6 +17,7 @@ import {
   runCleanups,
   setEnvironment,
   setEnvironmentTurn,
+  type EnvironmentTexture,
 } from "./scene.ts";
 import {
   actionOfKey,
@@ -87,7 +88,7 @@ export function createRenderer({
   let wardrobe: Wardrobe | undefined;
   let windowEvents: AbortController | undefined;
   /** Every environment loaded so far, kept until the renderer is disposed. */
-  const environmentTextures = new Map<EnvironmentId, Texture>();
+  const environmentTextures = new Map<EnvironmentId, EnvironmentTexture>();
 
   function dispose(): void {
     if (disposed) return;
@@ -99,7 +100,7 @@ export function createRenderer({
       () => wardrobe?.dispose(),
       () => unsubscribeResize?.(),
       () => input?.dispose(),
-      ...[...environmentTextures.values()].map((texture) => () => texture.destroy()),
+      ...[...environmentTextures.values()].map((loaded) => () => loaded.texture.destroy()),
       () => gpu?.dispose(),
     ]);
   }
@@ -196,17 +197,25 @@ export function createRenderer({
     // disposed, a result touches nothing.
     const load = async (id: EnvironmentId): Promise<boolean> => {
       const environment = environmentById(id)!;
-      try {
-        const bytes = await fetchEnvironment(environment);
-        if (disposed) return false;
-        const texture = createEnvironmentTexture(nextGpu, scene, decodeHdr(bytes));
-        environmentTextures.set(id, texture);
-        return true;
-      } catch (error) {
+      const reportFailure = (message: string) => {
         if (disposed) return false;
         failures.add(id);
-        onEnvironmentFailure?.(id, error instanceof Error ? error.message : String(error));
+        onEnvironmentFailure?.(id, message);
         return false;
+      };
+      let bytes: Uint8Array;
+      try {
+        bytes = await fetchEnvironment(environment);
+      } catch (error) {
+        // `fetchEnvironment` already says what went wrong, shortly.
+        return reportFailure(messageOf(error));
+      }
+      if (disposed) return false;
+      try {
+        environmentTextures.set(id, createEnvironmentTexture(nextGpu, scene, decodeHdr(bytes)));
+        return true;
+      } catch (error) {
+        return reportFailure(`照片文件无法解码（${messageOf(error)}）`);
       }
     };
 
@@ -346,6 +355,11 @@ export function createRenderer({
   });
 
   return { ready, dispose };
+}
+
+/** What a caught error says, for the owner to read. */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /**

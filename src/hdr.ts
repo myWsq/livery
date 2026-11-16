@@ -10,14 +10,24 @@ export interface HdrImage {
   readonly height: number;
   /** RGBA half floats as their 16-bit patterns, rows from the top of the image down. */
   readonly pixels: Uint16Array<ArrayBuffer>;
+  /**
+   * What the stored values must be multiplied by to give the photograph's radiance:
+   * 1, unless the photograph is brighter than a half float can hold, in which case
+   * the whole image was divided by it so its brightest value is the largest half.
+   */
+  readonly scale: number;
 }
 
-/** The largest finite half float; brighter values are clamped to it. */
+/** The largest finite half float. */
 const MAX_HALF = 65504;
 const HALF_ONE = 0x3c00;
 const NEWLINE = 0x0a;
 
-/** The 16-bit pattern of a non-negative number as a half float, rounded to nearest even. */
+/**
+ * The 16-bit pattern of a non-negative number as a half float, rounded to nearest
+ * even. Anything above the largest half is clamped to it; `decodeHdr` scales a
+ * photograph first, so for a photograph that only ever absorbs rounding.
+ */
 export function halfFloat(value: number): number {
   const clamped = Math.min(Math.max(value, 0), MAX_HALF);
   const bits = float32Bits(clamped);
@@ -37,19 +47,22 @@ function float32Bits(value: number): number {
   return u32[0];
 }
 
+/** The value of a channel byte of 1 under each exponent: `2^(e − 136)`, and 0 for black. */
+const EXPONENTS = Float64Array.from({ length: 256 }, (_, e) => (e === 0 ? 0 : 2 ** (e - 136)));
+
 /**
- * Every channel value an RGBE pixel can hold, as a half float: index `e * 256 + byte`
- * holds `byte × 2^(e − 136)`, and exponent 0 is black.
+ * Every channel value an RGBE pixel can hold, divided by `scale`, as a half float:
+ * index `e * 256 + byte` holds `byte × 2^(e − 136) / scale`, and exponent 0 is black.
  */
-let channelTable: Uint16Array | undefined;
-function channels(): Uint16Array {
-  if (channelTable) return channelTable;
+let unscaledTable: Uint16Array | undefined;
+function channels(scale: number): Uint16Array {
+  if (scale === 1 && unscaledTable) return unscaledTable;
   const table = new Uint16Array(256 * 256);
   for (let e = 1; e < 256; e++) {
-    const scale = 2 ** (e - 136);
-    for (let byte = 0; byte < 256; byte++) table[e * 256 + byte] = halfFloat(byte * scale);
+    const unit = EXPONENTS[e] / scale;
+    for (let byte = 0; byte < 256; byte++) table[e * 256 + byte] = halfFloat(byte * unit);
   }
-  channelTable = table;
+  if (scale === 1) unscaledTable = table;
   return table;
 }
 
@@ -80,8 +93,10 @@ export function decodeHdr(bytes: Uint8Array): HdrImage {
   const width = Number(match[2]);
   if (width === 0 || height === 0) throw new Error("the image is empty");
 
-  const table = channels();
-  const pixels = new Uint16Array(width * height * 4);
+  // Every pixel's RGBE bytes, rows from the top, read before any is converted: the
+  // brightest value decides the scale of all of them.
+  const rgbe = new Uint8Array(width * height * 4);
+  let brightest = 0;
   // One scanline, channel after channel: all red bytes, then green, blue, exponent.
   const scanline = new Uint8Array(width * 4);
   const ensure = (count: number) => {
@@ -127,18 +142,35 @@ export function decodeHdr(bytes: Uint8Array): HdrImage {
 
     let out = y * width * 4;
     for (let x = 0; x < width; x++) {
+      const r = scanline[x];
+      const g = scanline[width + x];
+      const b = scanline[2 * width + x];
       const e = scanline[3 * width + x];
-      if (e === 0) {
-        pixels[out] = pixels[out + 1] = pixels[out + 2] = 0;
-      } else {
-        const row = e * 256;
-        pixels[out] = table[row + scanline[x]];
-        pixels[out + 1] = table[row + scanline[width + x]];
-        pixels[out + 2] = table[row + scanline[2 * width + x]];
-      }
-      pixels[out + 3] = HALF_ONE;
+      rgbe[out] = r;
+      rgbe[out + 1] = g;
+      rgbe[out + 2] = b;
+      rgbe[out + 3] = e;
+      brightest = Math.max(brightest, Math.max(r, g, b) * EXPONENTS[e]);
       out += 4;
     }
   }
-  return { width, height, pixels };
+
+  // Brighter than a half float can hold (the sun, in a daylight photograph): the whole
+  // image is divided so nothing is clipped, and `scale` gives the brightness back.
+  const scale = brightest > MAX_HALF ? brightest / MAX_HALF : 1;
+  const table = channels(scale);
+  const pixels = new Uint16Array(width * height * 4);
+  for (let i = 0; i < pixels.length; i += 4) {
+    const e = rgbe[i + 3];
+    if (e === 0) {
+      pixels[i] = pixels[i + 1] = pixels[i + 2] = 0;
+    } else {
+      const row = e * 256;
+      pixels[i] = table[row + rgbe[i]];
+      pixels[i + 1] = table[row + rgbe[i + 1]];
+      pixels[i + 2] = table[row + rgbe[i + 2]];
+    }
+    pixels[i + 3] = HALF_ONE;
+  }
+  return { width, height, pixels, scale };
 }

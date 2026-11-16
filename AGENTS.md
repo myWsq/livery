@@ -48,7 +48,11 @@ tool; do not generalize for other users or other cars unless asked.
 - **Lighting is four real photographs.** The car is lit by one of four panoramas in
   `environments/`: 2048×1024 equirectangular Radiance `.hdr` files, CC0, from Poly
   Haven. Their order, names and settings live in `src/environments.ts`; `src/hdr.ts`
-  decodes them, with no dependency. The browser loads all four and keeps them
+  decodes them, with no dependency. Nothing is clamped: a photograph brighter than a
+  half float can hold (the sun in `day.hdr`) is divided as a whole so its brightest
+  value is the largest half float, and that scale is restored by multiplying the
+  exposure, which is exact because the shading and the backdrop are linear in the
+  environment's radiance. The browser loads all four and keeps them
   resident, about 22 MB of texture each, so `↑`/`↓` switch instantly; the URL fragment
   reads `#<design>@<environment>`. What the code relies on:
   - **Backdrop.** The photograph is projected on a dome around the point it was taken

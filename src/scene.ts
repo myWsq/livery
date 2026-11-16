@@ -40,7 +40,7 @@ const NEUTRAL = {
 } as const;
 
 /** The least blur of the backdrop, in radians: the photograph behind the car stays soft. */
-const BACKDROP_CONE = 0.012;
+const BACKDROP_CONE = 0.004;
 
 /** Base colour of a part that brings no tint of its own, linear RGB. */
 const DEFAULT_TINT: Record<SurfaceClass, Rgb> = {
@@ -81,10 +81,19 @@ export interface SceneShaders {
   readonly blur: ShaderSource;
 }
 
-/** What lights the scene: an environment texture and how it is fitted to the car. */
-export interface SceneEnvironment {
+/** A photograph made into an environment texture. */
+export interface EnvironmentTexture {
   /** Equirectangular, `rgba16float`, each mip level a blur of the one above. */
   readonly texture: Texture;
+  /**
+   * What the texture's values must be multiplied by to give the photograph's radiance
+   * (`HdrImage.scale`): above 1 only for a photograph brighter than a half float.
+   */
+  readonly scale: number;
+}
+
+/** What lights the scene: an environment texture and how it is fitted to the car. */
+export interface SceneEnvironment extends EnvironmentTexture {
   readonly settings: EnvironmentSettings;
 }
 
@@ -123,7 +132,11 @@ export async function createScene(
     // Until an environment is put on, the car stands under the neutral one. The scene
     // owns only this one; the textures it is given belong to whoever made them.
     const neutral = own(owned, createNeutralEnvironment(gpu));
-    const environment: SceneEnvironment = { texture: neutral, settings: NEUTRAL.settings };
+    const environment: SceneEnvironment = {
+      texture: neutral,
+      scale: 1,
+      settings: NEUTRAL.settings,
+    };
     const bounds = modelBounds(model);
 
     const carGeometry = own(owned, createCarGeometry(gpu, model));
@@ -326,9 +339,13 @@ function createSeamGeometry(gpu: Gpu, model: CarModel) {
  * Turns a decoded photograph into an environment texture: level 0 is the photograph,
  * and each further level is the one above blurred by the two passes of `blur.wgsl`.
  * The texture belongs to the caller, who puts it on with `setEnvironment` and
- * destroys it once no scene shows it.
+ * destroys it once no scene shows it. The photograph's scale travels with it.
  */
-export function createEnvironmentTexture(gpu: Gpu, scene: Scene, image: HdrImage): Texture {
+export function createEnvironmentTexture(
+  gpu: Gpu,
+  scene: Scene,
+  image: HdrImage,
+): EnvironmentTexture {
   const [width, height] = ENVIRONMENT_SIZE;
   if (image.width !== width || image.height !== height) {
     throw new Error(
@@ -389,7 +406,7 @@ export function createEnvironmentTexture(gpu: Gpu, scene: Scene, image: HdrImage
     }
     releaseSource();
     owned.delete(env);
-    return env;
+    return { texture: env, scale: image.scale };
   } catch (error) {
     runCleanups(cleanupOwned(owned), { error });
   }
@@ -445,13 +462,13 @@ function environmentUniforms(env: Texture) {
  */
 export function setEnvironment(
   scene: Scene,
-  texture: Texture,
+  { texture, scale }: EnvironmentTexture,
   settings: EnvironmentSettings,
 ): void {
   const { env_size, texel_angle, ambient_lod } = environmentUniforms(texture);
   scene.car.set({ env_tex: texture, uniforms: { env_size, texel_angle, ambient_lod } });
   scene.present.set({ env_tex: texture });
-  scene.environment = { texture, settings };
+  scene.environment = { texture, scale, settings };
 }
 
 /**
@@ -548,7 +565,7 @@ export function renderCar(
  */
 export function render(currentFrame: Frame, scene: Scene, output: Target, view: CameraView): void {
   setCarView(scene, carViewOf(view), scene.hdr.size, "lit", SEAMS.min_pixels);
-  const { texture, settings } = scene.environment;
+  const { texture, scale, settings } = scene.environment;
   const { env_size, texel_angle } = environmentUniforms(texture);
   scene.present.set({
     camera: {
@@ -557,7 +574,10 @@ export function render(currentFrame: Frame, scene: Scene, output: Target, view: 
       forward: view.forward,
       aspect: view.aspect,
       right: view.right,
-      exposure: settings.exposure,
+      // The texture holds the photograph divided by `scale`. Every term of the car's
+      // shading and of the backdrop is linear in the environment's radiance, so this
+      // one multiplication gives the photograph its full brightness back.
+      exposure: settings.exposure * scale,
       up: view.up,
       background_intensity: 1,
       texel_angle,
