@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 2400 1800" width="2400mm" height="1800mm">
+  <!-- Draft 2, Le Mans stripes, REAR. 1 user unit = 1 mm.
+       u (to the right) = 1200 + 1000 * z, v (down) = 1600 - 1000 * y, car frame in metres. Drawn for the Porsche 911 (992). -->
+
+  <!-- Drawing aid only: the workshop removes this group before the artboard reaches the car. -->
+  <g id="guide">
+    <image xlink:href="../_guides/rear.png" x="0" y="0" width="2400" height="1800" />
+  </g>
+
+  <!-- The stripes, carried down the tail. -->
+  <rect x="808" y="0" width="12" height="1800" fill="#1b2a4a" />
+  <rect x="940" y="0" width="220" height="1800" fill="#1b2a4a" />
+  <rect x="1240" y="0" width="220" height="1800" fill="#1b2a4a" />
+  <rect x="1580" y="0" width="12" height="1800" fill="#1b2a4a" />
+</svg>

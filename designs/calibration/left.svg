@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 5200 1800" width="5200mm" height="1800mm">
+  <!-- Calibration artboard, LEFT side. 1 user unit = 1 mm.
+       u (to the right) = 2600 - 1000 * x, v (down) = 1600 - 1000 * y, car frame in metres. -->
+
+  <!-- Drawing aid only: the workshop removes this group before the artboard reaches the car. -->
+  <g id="guide">
+    <image xlink:href="../_guides/left.png" x="0" y="0" width="5200" height="1800" />
+  </g>
+
+  <defs>
+    <pattern id="grid-100" width="100" height="100" patternUnits="userSpaceOnUse">
+      <path d="M0 0H100M0 100H100M0 0V100M100 0V100" fill="none" stroke="#16181c" stroke-width="6" />
+    </pattern>
+    <pattern id="grid-500" width="500" height="500" patternUnits="userSpaceOnUse">
+      <path d="M0 0H500M0 500H500M0 0V500M500 0V500" fill="none" stroke="#16181c" stroke-width="14" />
+    </pattern>
+  </defs>
+
+  <!-- Grid: a line every 100 mm, a heavier one every 500 mm. -->
+  <rect width="5200" height="1800" fill="url(#grid-100)" />
+  <rect width="5200" height="1800" fill="url(#grid-500)" />
+
+  <!-- Millimetre values of the heavy lines. -->
+  <g font-family="sans-serif" font-size="44" fill="#16181c">
+    <text x="516" y="986">u 500</text>
+    <text x="1016" y="986">u 1000</text>
+    <text x="1516" y="986">u 1500</text>
+    <text x="2016" y="986">u 2000</text>
+    <text x="2516" y="986">u 2500</text>
+    <text x="3016" y="986">u 3000</text>
+    <text x="3516" y="986">u 3500</text>
+    <text x="4016" y="986">u 4000</text>
+    <text x="4516" y="986">u 4500</text>
+    <text x="5016" y="986">u 5000</text>
+    <text x="1216" y="486">v 500</text>
+    <text x="2716" y="486">v 500</text>
+    <text x="4216" y="486">v 500</text>
+    <text x="1216" y="1046">v 1000</text>
+    <text x="2716" y="1046">v 1000</text>
+    <text x="4216" y="1046">v 1000</text>
+    <text x="1216" y="1486">v 1500</text>
+    <text x="2716" y="1486">v 1500</text>
+    <text x="4216" y="1486">v 1500</text>
+  </g>
+
+  <!-- View name, and an arrow toward the nose. -->
+  <g font-family="sans-serif" font-weight="bold" fill="#16181c">
+    <text x="2600" y="1300" font-size="240" text-anchor="middle">LEFT</text>
+    <path d="M2300 850l120 -55v35h480v40h-480v35z" />
+    <text x="2940" y="878" font-size="80">FRONT</text>
+  </g>
+
+  <!-- Markers at stated positions; no two artboards share a layout. -->
+  <circle cx="2450" cy="1120" r="45" fill="#e6002d" />                  <!-- red: centre (2450, 1120) -->
+  <rect x="1820" y="1140" width="80" height="80" fill="#00a8e8" />      <!-- cyan: corner (1820, 1140) -->
+  <path d="M4250 900l60 100h-120z" fill="#d400c8" />                    <!-- magenta: apex (4250, 900) -->
+  <rect x="3250" y="1250" width="70" height="70" fill="#19c832" />      <!-- green: corner (3250, 1250) -->
+</svg>
